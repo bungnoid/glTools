@@ -155,7 +155,12 @@ def loadChannelBoxSel(textField):
 		return
 	
 	# Update UI
-	mc.textFieldButtonGrp(textField,e=True,text=str(nodeList[0]+'.'+channelList[0]))
+	if mc.textField(textField,q=True,ex=True):
+		mc.textField(textField,e=True,text=str(nodeList[0]+'.'+channelList[0]))
+	if mc.textFieldGrp(textField,q=True,ex=True):
+		mc.textFieldGrp(textField,e=True,text=str(nodeList[0]+'.'+channelList[0]))
+	if mc.textFieldButtonGrp(textField,q=True,ex=True):
+		mc.textFieldButtonGrp(textField,e=True,text=str(nodeList[0]+'.'+channelList[0]))
 
 # --------------------
 # - Text Scroll List -
