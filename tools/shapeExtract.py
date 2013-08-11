@@ -123,27 +123,31 @@ def shapeExtract_weights(baseGeo,targetGeo,weightList,deleteHistory=True,name=''
 	# - Extract Shape -
 	# =================
 	
-	# Duplicate shape base
-	dupGeo = mc.duplicate(baseGeo)[0]
+	# Determine blendShape geometry
+	if name and mc.objExists(name):
+		blendGeo = name
+		m_blendShape = mc.blendShape(baseGeo,blendGeo)[0]
+		m_blendAlias = mc.listAttr(m_blendShape+'.w',m=True)[0]
+		mc.setAttr(m_blendShape+'.'+m_blendAlias,1.0)
+		mc.delete(blendGeo,ch=True)
+	else:
+		blendGeo = mc.duplicate(baseGeo,n=blendGeo)[0]
 	
 	# Create blendShape to target
-	blendShape = mc.blendShape(targetGeo,dupGeo)[0]
+	blendShape = mc.blendShape(targetGeo,blendGeo)[0]
 	mc.setAttr(blendShape+'.'+targetGeo,1)
 	
 	# Set belndShape target weights
-	glTools.utils.blendShape.setTargetWeights(blendShape,targetGeo,weightList,dupGeo)
+	glTools.utils.blendShape.setTargetWeights(blendShape,targetGeo,weightList,blendGeo)
 	
 	# Delete history on duplicated geometry
-	if deleteHistory: mc.delete(dupGeo,constructionHistory=True)
+	if deleteHistory: mc.delete(blendGeo,constructionHistory=True)
 		
-	# Rename extracted target
-	if name: dupGeo = mc.rename(dupGeo,name)
-	
 	# =================
 	# - Return Result -
 	# =================
 	
-	return name
+	return blendGeo
 
 def splitBlendTarget(baseGeo,targetGeo,pt1,pt2,smooth=0,deleteHistory=True,name=''):
 	'''

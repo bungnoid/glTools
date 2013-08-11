@@ -34,11 +34,11 @@ def findRelatedSkinCluster(geometry):
 	@type geometry: str
 	'''
 	# Check geometry
-	if not mc.objExists(geometry): raise UserInputError('Object '+geometry+' does not exist!')
+	if not mc.objExists(geometry): raise Exception('Object '+geometry+' does not exist!')
 	# Check transform
 	if mc.objectType(geometry) == 'transform':
 		try: geometry = mc.listRelatives(geometry,s=True,ni=True,pa=True)[0]
-		except: raise UserInputError('Object '+geometry+' has no deformable geometry!')
+		except: raise Exception('Object '+geometry+' has no deformable geometry!')
 	
 	# Determine skinCluster
 	skin = mm.eval('findRelatedSkinCluster "'+geometry+'"')
@@ -312,7 +312,7 @@ def rename(geometry,suffix='skinCluster'):
 	'''
 	# Check geometry
 	if not mc.objExists(geometry):
-		raise UserInputError('Geometry "'+geometry+'" does not exist!')
+		raise Exception('Geometry "'+geometry+'" does not exist!')
 	
 	# Get connected skinCluster
 	try:
@@ -521,15 +521,15 @@ def mirrorSkin(skinCluster,search='L_',replace='R_'):
 	'''
 	# Check skinCluster
 	if not isSkinCluster(skinCluster):
-		raise UserInputError('Object "'+skinCluster+'" is not a valid skinCluster!')
+		raise Exception('Object "'+skinCluster+'" is not a valid skinCluster!')
 	
 	# Get affected object
 	sourceGeo = glTools.utils.deformer.getAffectedGeometry(skinCluster).keys()[0]
 	if not sourceGeo.startswith(search):
-		raise UserInputError('Search string "'+search+'" not found in source geometry name!')
+		raise Exception('Search string "'+search+'" not found in source geometry name!')
 	destGeo = sourceGeo.replace(search,replace)
-	if not mc.objExists(destinationGeo):
-		raise UserInputError('Destination geometry "'+destinationGeo+'" does not exist!')
+	if not mc.objExists(destGeo):
+		raise Exception('Destination geometry "'+destGeo+'" does not exist!')
 	
 	# Get influence list
 	influenceList = mc.skinCluster(skinCluster,q=True,inf=True)
@@ -563,7 +563,7 @@ def mirrorSkin(skinCluster,search='L_',replace='R_'):
 		mirroWeightList[inf] = getInfluenceWeights(skinCluster,inf)
 	
 	# Clear mirrorSkin weights
-	clearWeights(destinationGeo)
+	clearWeights(destGeo)
 	
 	# Apply mirror weights
 	for i in range(len(influenceList)):

@@ -243,3 +243,31 @@ def removeTarget(blendShape,target,baseGeometry):
 	
 	# Delete duplicate geometry
 	mc.delete(dup)
+
+def addTargetInbetween(blendShape,inbetweenGeo,baseGeo,inbetweenTarget,inbetweenWeight):
+	'''
+	Add blendShape target inbetween shape at the specified weight value.
+	@param blendShape: Name of blendShape to add inbetween target to
+	@type blendShape: str
+	@param inbetweenGeo: BlendShape inbetween target geometry
+	@type inbetweenGeo: str
+	@param baseGeo: BlendShape base geometry to add inbetween to
+	@type baseGeo: str
+	@param inbetweenTarget: BlendShape target to add inbetween to.
+	@type inbetweenTarget: str
+	@param inbetweenWeight: BlendShape target weight to add inbetween to.
+	@type inbetweenWeight: float
+	'''
+	# Check blendShape
+	if not isBlendShape(blendShape):
+		raise Exception('Object "'+blendShape+'" is not a valid blendShape node!')
+	
+	# Check inbetween target geometry
+	if not mc.objExists(inbetweenGeo):
+		raise Exception('Inbetween target geometry "'+inbetweenGeo+'" does not exist!')
+	
+	# Get target index
+	targetIndex = getTargetIndex(blendShape,inbetweenTarget)
+	
+	# Add inbetween
+	mc.blendShape(blendShape,e=True,ib=True,t=[baseGeo,targetIndex,inbetweenGeo,inbetweenWeight])
