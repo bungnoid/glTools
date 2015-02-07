@@ -1,6 +1,7 @@
 import maya.cmds as mc
 
 import glTools.ui.utils
+import glTools.utils.attribute
 
 def reorderAttrUI():
 	'''
@@ -93,67 +94,21 @@ def reorderAttrFromUI(dir):
 		if not mc.objExists(obj+'.'+attr):
 			raise Exception('Attribute "'+obj+'.'+attr+'" does not exist!')
 	
-	# Get attr list
-	udAttrList = mc.listAttr(obj,ud=True)
-	keyAttrList = mc.listAttr(obj,k=True)
-	cbAttrList = mc.listAttr(obj,cb=True)
-	allAttrList = [i for i in udAttrList if keyAttrList.count(i) or cbAttrList.count(i)]
-	allAttrLen = len(allAttrList)
-	
 	# Reorder Attributes
 	for attr in attrList:
 		
-		# Get relative attribute index 
-		attrInd = allAttrList.index(attr)
-		
 		if dir == 0: # Move Up
-			
-			print 'move up'
-			
-			if not attrInd: continue
-				
-			mc.renameAttr(obj+'.'+allAttrList[attrInd-1],allAttrList[attrInd-1]+'XXX')
-			mc.renameAttr(obj+'.'+allAttrList[attrInd-1]+'XXX',allAttrList[attrInd-1])
-			
-			for i in allAttrList[attrInd+1:]:
-				mc.renameAttr(obj+'.'+i,i+'XXX')
-				mc.renameAttr(obj+'.'+i+'XXX',i)
-			
+			glTools.utils.attribute.reorder(obj+'.'+attr,'up')
 		if dir == 1: # Move Down
-			
-			print 'move down'
-			
-			if attrInd == (allAttrLen-1): continue
-			
-			mc.renameAttr(obj+'.'+allAttrList[attrInd],allAttrList[attrInd]+'XXX')
-			mc.renameAttr(obj+'.'+allAttrList[attrInd]+'XXX',allAttrList[attrInd])
-			
-			if attrInd >= (allAttrLen-1): continue
-			
-			for i in allAttrList[attrInd+2:]:
-				mc.renameAttr(obj+'.'+i,i+'XXX')
-				mc.renameAttr(obj+'.'+i+'XXX',i)
-			
-		
+			glTools.utils.attribute.reorder(obj+'.'+attr,'down')
 		if dir == 2: # Move to Top
-			
-			print 'move to top'
-			
-			for i in range(len(allAttrList)):
-				if i == attrInd: continue
-				mc.renameAttr(obj+'.'+allAttrList[i],allAttrList[i]+'XXX')
-				mc.renameAttr(obj+'.'+allAttrList[i]+'XXX',allAttrList[i])
-		
+			glTools.utils.attribute.reorder(obj+'.'+attr,'top')
 		if dir == 3: # Move to Bottom
-			
-			print 'move to bottom'
-			
-			mc.renameAttr(obj+'.'+allAttrList[attrInd],allAttrList[attrInd]+'XXX')
-			mc.renameAttr(obj+'.'+allAttrList[attrInd]+'XXX',allAttrList[attrInd])
+			glTools.utils.attribute.reorder(obj+'.'+attr,'bottom')
 	
 	# Refresh attribute list
 	reorderAttrRefreshList(attrList)
 	
 	# Refresh UI
-	channelBox = 'MayaWindow|mayaMainWindowForm|formLayout3|formLayout11|formLayout32|formLayout33|ChannelsLayersPaneLayout|formLayout36|menuBarLayout1|frameLayout1|mainChannelBox'
+	channelBox = 'mainChannelBox'
 	mc.channelBox(channelBox,e=True,update=True)

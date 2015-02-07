@@ -34,7 +34,7 @@ def charUIFromUI():
 	if not mc.window(win,q=True,ex=True):
 		raise UserInputError('Spaces CharcterUI is not currently open!')
 	char = str(mc.textFieldGrp('spacesCharTFG',q=True,text=True))
-	glTools.common.Spaces().ui(char)
+	glTools.tools.Spaces().ui(char)
 
 def createAddUI():
 	'''

@@ -1,9 +1,9 @@
 import maya.cmds as mc
 import maya.OpenMaya as OpenMaya
 
-import glTools.common.componentUtilities
-import glTools.utils.mathUtils
+import glTools.utils.component
 import glTools.utils.curve
+import glTools.utils.mathUtils
 import glTools.utils.surface
 
 class UserInputError(Exception): pass
@@ -31,8 +31,7 @@ def neighbour(vertexList,referenceObject,meshRelax):
 	neighbourData = OpenMaya.MVectorArray()
 	
 	# Get mesh and vertex list
-	compUtil = glTools.common.componentUtilities.ComponentUtilities()
-	mesh = compUtil.getComponentIndexList(vertexList).keys()[0]
+	mesh = glTools.utils.component.getComponentIndexList(vertexList).keys()[0]
 	
 	# Get vertexIterator for mesh
 	sel = OpenMaya.MSelectionList()
@@ -46,7 +45,7 @@ def neighbour(vertexList,referenceObject,meshRelax):
 		
 		# Get current point
 		pnt = mc.pointPosition(vertexList[i])
-		pntId = compUtil.getComponentIndexList([vertexList[i]])[mesh][0]
+		pntId = glTools.utils.component.getComponentIndexList([vertexList[i]])[mesh][0]
 		
 		# Get closest U tangent
 		if isCurve:
@@ -59,12 +58,12 @@ def neighbour(vertexList,referenceObject,meshRelax):
 		
 		# Get neighbouring points
 		n1 = mc.pickWalk(vertexList[i],d='up')[0]
-		n1Id = compUtil.getComponentIndexList([n1])[mesh][0]
+		n1Id = glTools.utils.component.getComponentIndexList([n1])[mesh][0]
 		n1Pt = mc.pointPosition(n1)
 		n1Dist = glTools.utils.mathUtils.distanceBetween(pnt,n1Pt)
 		
 		n2 = mc.pickWalk(vertexList[i],d='down')[0]
-		n2Id = compUtil.getComponentIndexList([n2])[mesh][0]
+		n2Id = glTools.utils.component.getComponentIndexList([n2])[mesh][0]
 		n2Pt = mc.pointPosition(n2)
 		n2Dist = glTools.utils.mathUtils.distanceBetween(pnt,n2Pt)
 		

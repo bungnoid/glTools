@@ -67,4 +67,15 @@ def resetFromUI():
 		try: glTools.utils.skinCluster.reset(item)
 		except: pass
 
+def cleanFromUI():
+	'''
+	Execute skinCluster.reset() from the UI
+	'''
+	# Get Selection
+	sel = mc.ls(sl=True,type=['transform','mesh','nurbsSurface','nurbsCurve'])
+	# Reset skinCluster
+	for item in sel:
+		skinCluster = glTools.utils.skinCluster.findRelatedSkinCluster(item)
+		try: glTools.utils.skinCluster.clean(skinCluster)
+		except: pass
 

@@ -2,7 +2,7 @@ import maya.cmds as mc
 
 import glTools.utils.surface
 
-def create(samplePt,pntList,weightCalc=[True,True,True],prefix=''):
+def create(samplePt,pntList,weightCalc=[True,True,True],prefix=None):
 	'''
 	Generate the barycentric point weight setup based on the input arguments
 	@param samplePt: The locator used to define the triangle sample point to generate weights for
@@ -14,6 +14,13 @@ def create(samplePt,pntList,weightCalc=[True,True,True],prefix=''):
 	@param prefix: String name prefix for all created nodes
 	@type prefix: str
 	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	# Check Sample Point (Locator)
+	if not mc.objExists(samplePt):
+		raise Exception('Sample point "'+samplePt+'" does not exist!!')
 	
 	# Check prefix
 	if not prefix: prefix = 'barycentricPointWeight'

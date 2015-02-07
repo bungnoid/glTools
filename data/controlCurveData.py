@@ -1,12 +1,11 @@
 import maya.cmds as mc
 import maya.OpenMaya as OpenMaya
 
-import cPickle
-import os.path
-
 import glTools.utils.curve
 
-class ControlCurveData( object ):
+import data
+
+class ControlCurveData( data.Data ):
 	'''
 	Control Curve Data Class Object.
 	Contains functions to save, load and rebuild basic curve shapes.
@@ -15,36 +14,61 @@ class ControlCurveData( object ):
 		'''
 		ControlCurveData class initializer
 		'''
-		self.cvList = {}
+		# Execute Super Class Initilizer
+		super(ControlCurveData, self).__init__()
+		
+		self.setWorldSpace = False
 	
-	def build(self,ctrls=[]):
+	def buildData(self,ctrls=[]):
 		'''
 		Build Data
 		@param ctrls: List of controls to save curve shape data for. If empty selects controls based on "ctrlLod" attr.
 		@type ctrls: list
 		'''
-		# Get control curve shapes
+		# ============================
+		# - Get Control Curve Shapes -
+		# ============================
+		
 		if not ctrls: ctrls = mc.ls('*.ctrlLod',o=True)
+		#if not ctrls: ctrls = mc.ls(type='nurbsCurve',o=True)
 		if not ctrls: raise Exception('No control curves specified!')
-		ctrlShapes = mc.listRelatives(ctrls,s=True,pa=True)
+		ctrlShapes = mc.listRelatives(ctrls,s=True,pa=True) or []
 		ctrlCurves = mc.ls(ctrlShapes,type='nurbsCurve')
+		ctrlCurves += mc.ls(ctrls, type='nurbsCurve') or []
 		if not ctrlCurves: return
 		
-		# For each shape
+		# =============================
+		# - Record Control Curve Data -
+		# =============================
+		
+		# Reset Data
+		self.reset()
+		
+		# Record Curve Data
 		for ctrlCurve in ctrlCurves:
 			
 			# Get curve point list
 			curveFn = glTools.utils.curve.getCurveFn(ctrlCurve)
 			ptArray = OpenMaya.MPointArray()
+			worldPtArray = OpenMaya.MPointArray()
 			curveFn.getCVs(ptArray,OpenMaya.MSpace.kObject)
+			curveFn.getCVs(worldPtArray,OpenMaya.MSpace.kWorld)
 			
 			# Build CV array
 			cvArray = []
+			worldCvArray = []
 			for i in range(ptArray.length()):
 				cvArray.append([ptArray[i].x,ptArray[i].y,ptArray[i].z])
+				worldCvArray.append([worldPtArray[i].x,worldPtArray[i].y,worldPtArray[i].z])
 			
 			# Store cvArray
-			self.cvList[ctrlCurve] = cvArray
+			self._data[ctrlCurve] = [ cvArray, worldCvArray ]
+			
+		# =================
+		# - Return Result -
+		# =================
+		
+		return ctrls
 	
 	def rebuild(self,ctrls=[]):
 		'''
@@ -52,12 +76,18 @@ class ControlCurveData( object ):
 		@param ctrls: List of controls curve shape to rebuild. If empty selects controls based on "ctrlLod" attr.
 		@type ctrls: list
 		'''
-		# Get Control List
-		data_keys = self.cvList.keys()
+		# ====================
+		# - Get Control List -
+		# ====================
+		
+		data_keys = self._data.keys()
 		if not data_keys: return
 		if not ctrls: ctrls = data_keys
 		
-		# Rebuild Shapes
+		# ==========================
+		# - Rebuild Control Shapes -
+		# ==========================
+		
 		for ctrl in ctrls:
 			
 			# Check ctrl
@@ -70,42 +100,27 @@ class ControlCurveData( object ):
 			
 			# Build Point Array
 			ptArray = OpenMaya.MPointArray()
-			for cv in self.cvList[ctrl]:
+			
+			if self.setWorldSpace:
+				ctrlCrv = self._data[ctrl][1]
+			else:
+				ctrlCrv = self._data[ctrl][0]
+				
+			for cv in ctrlCrv:
 				ptArray.append(OpenMaya.MPoint(cv[0],cv[1],cv[2],1.0))
 			
 			# Set CV Positions
 			curveFn = glTools.utils.curve.getCurveFn(ctrl)
-			curveFn.setCVs(ptArray,OpenMaya.MSpace.kObject)
+			if self.setWorldSpace:
+				curveFn.setCVs(ptArray,OpenMaya.MSpace.kWorld)
+			else:
+				curveFn.setCVs(ptArray,OpenMaya.MSpace.kObject)
+				
 			curveFn.updateCurve()
+		
+		# =================
+		# - Return Result -
+		# =================
+		
+		return ctrls
 
-	def save(self,filePath):
-		'''
-		Save control curve data object to file.
-		@param filePath: Target file path
-		@type filePath: str
-		'''
-		# Check filePath
-		dirpath = filePath.replace(filePath.split('/')[-1],'')
-		if not os.path.isdir(dirpath): os.makedirs(dirpath)
-		
-		# Export data to file
-		fileOut = open(filePath,'wb')
-		cPickle.dump(self,fileOut)
-		fileOut.close()
-		
-		# Return result
-		return filePath
-		
-	def load(self,filePath):
-		'''
-		Load control curve data object from file.
-		@param filePath: Target file path
-		@type filePath: str
-		'''
-		# Check filePath
-		if not os.path.isfile(filePath):
-			raise Exception('Invalid path "'+filePath+'"!')
-		
-		# Load file data
-		fileIn = open(filePath,'rb')
-		return cPickle.load(fileIn)

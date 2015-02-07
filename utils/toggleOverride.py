@@ -1,65 +1,4 @@
-#################################################################################################################
-##<OPEN>
-##<KEEP_FORMAT>
-##<FILE NAME>
-##			toggleOverride.mel
-##</FILE NAME>
-##
-##<VERSION HISTORY>
-##			05/15/07 : Ramiro Gomez : added header
-##			04/24/08 : Ramiro Gomez : initial conversion to Python
-##</VERSION HISTORY>
-##
-##<DESCRIPTION>
-##			Toggles override display state of selected element surfaces
-##</DESCRIPTION>
-##
-##<USAGE>
-##			Open existing asset scene, select a control on your
-##			asset(example - supermover)
-##			Launch toggleOverride_GUI from the rigTools menu, select
-##			the options you want and execute.
-##</USAGE>
-##
-##<DOCUMENTATION>
-##			<+> https://wiki.laika.com/bin/view/Main/Entertainment/Jack_Ben/JnbRiggingProceduresToggleOverrideUI
-##</DOCUMENTATION>
-##
-##<NOTES>
-##			the rigTools maya menu contains the toggleOverride_GUI
-##</NOTES>
-##
-##
-##<DEPARTMENTS>
-##                      <+> rig
-##			<+> cfin
-##</DEPARTMENTS>
-##
-##<KEYWORDS>
-##			<+> rig
-##			<+> cfin
-##			<+> utility
-##			<+> gui
-##			<+> interface
-##			<+> window
-##</KEYWORDS>
-##
-##<APP>
-##			Maya
-##</APP>
-##
-##<APP VERSION>
-##			7.0.1, 8.5
-##</APP VERSION>
-##
-##<CLOSE>
-#################################################################################################################
-
 import maya.cmds as mc
-
-class UserInputError(Exception): pass
-
-#################################################################################################################
 
 def ui():
 	
@@ -70,7 +9,7 @@ def ui():
 	
 	@keyword: rig, cfin, utilities, gui, interface, window
     
-    @appVersion: 8.5, 2008
+    	@appVersion: 8.5, 2008
 	'''
 	
 	if mc.window('toggleUIwin', q=1, ex=1):
@@ -128,8 +67,6 @@ def ui():
 	# tell Maya to draw the window
 	mc.showWindow('toggleUIwin')
 
-#################################################################################################################
-
 def toggleOverride_WRP():
 	'''
 	Wrapper to execute toggleOverride with inputs from
@@ -137,7 +74,7 @@ def toggleOverride_WRP():
 	
 	@keyword: rig, cfin, utilities, gui, interface, window
     
-    @appVersion: 8.5, 2008
+    	@appVersion: 8.5, 2008
 	
 	'''
 	
@@ -148,12 +85,10 @@ def toggleOverride_WRP():
 	mEnableShading = mc.checkBox('polyEnableShading', q=True, v=True)
    
 	if not len(sel):
-		raise UserInputError('error You must select a control in order to toggle display override on!')
+		raise Exception('error You must select a control in order to toggle display override on!')
 		
 	toggleOverride(sel[0], 'model', mEnableOverrides, (mDisplayMode - 1), mEnableShading)
 	
-#################################################################################################################
-
 def toggleOverride(assetNode, geoGroup, enableOverrides, displayMode, enableShading):
 	
 	'''
@@ -179,15 +114,15 @@ def toggleOverride(assetNode, geoGroup, enableOverrides, displayMode, enableShad
 	
 	@example: toggleOverride jack:cn_hed01_ccc model 1 2 1;
     
-    @appVersion: 8.5, 2008
+    	@appVersion: 8.5, 2008
 	'''
 	
 	##find all the geo in that group
-	if not mc.objExists(assetNode): raise UserInputError('')
+	if not mc.objExists(assetNode): raise Exception('')
 	if assetNode.count(':'):
 		geoGroup = assetNode.split(':')[0] + ':' + geoGroup
 	
-	if not mc.objExists(geoGroup): raise UserInputError('')
+	if not mc.objExists(geoGroup): raise Exception('')
 	geo = mc.listRelatives(geoGroup, ad=1, ni=1, typ=['mesh','nurbsSurface'])
 	
 	##cycle through that geo and set its state based on the mode, overrides, and shading

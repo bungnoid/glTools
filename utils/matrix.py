@@ -4,7 +4,6 @@ import maya.OpenMaya as OpenMaya
 import mathUtils
 import math
 
-class Exception(Exception): pass
 class MissingPluginError(Exception): pass
 
 def getMatrix(transform,local=False,time=None):
@@ -49,6 +48,7 @@ def buildMatrix(translate=(0,0,0),xAxis=(1,0,0),yAxis=(0,1,0),zAxis=(0,0,1)):
 	'''
 	# Create transformation matrix from input vectors
 	matrix = OpenMaya.MMatrix()
+	values = []
 	OpenMaya.MScriptUtil.setDoubleArray(matrix[0], 0, xAxis[0])
 	OpenMaya.MScriptUtil.setDoubleArray(matrix[0], 1, xAxis[1])
 	OpenMaya.MScriptUtil.setDoubleArray(matrix[0], 2, xAxis[2])
@@ -89,7 +89,18 @@ def vectorMatrixMultiply(vector,matrix,transformAsPoint=False,invertMatrix=False
 		vector *= matrix
 	
 	# Return new vector
-	return (vector.x,vector.y,vector.z)
+	return [vector.x,vector.y,vector.z]
+
+def getTranslation(matrix):
+	'''
+	Return the translation component of a matrix.
+	@param matrix: Matrix to extract translation from
+	@type matrix: maya.OpenMaya.MMatrix
+	'''
+	x = OpenMaya.MScriptUtil.getDoubleArrayItem(matrix[3],0)
+	y = OpenMaya.MScriptUtil.getDoubleArrayItem(matrix[3],1)
+	z = OpenMaya.MScriptUtil.getDoubleArrayItem(matrix[3],2)
+	return (x,y,z)
 
 def getRotation(matrix,rotationOrder='xyz'):
 	'''
@@ -198,7 +209,10 @@ def inverseTransform(source,destination,translate=True,rotate=True,scale=True):
 	@param scale: Apply inverse scale to destination transform
 	@type scale: bool
 	'''
-	# Check source / destination transforms
+	# ==========
+	# - Checks -
+	# ==========
+	
 	if not mc.objExists(source): raise Exception('Transform "'+source+'" does not exist!!')
 	if not mc.objExists(destination): raise Exception('Transform "'+destination+'" does not exist!!')
 	
@@ -207,19 +221,76 @@ def inverseTransform(source,destination,translate=True,rotate=True,scale=True):
 		try: mc.loadPlugin('decomposeMatrix')
 		except: raise MissingPluginError('Unable to load "decomposeMatrix" plugin!!')
 	
-	# Apply inverse transformations
-	# -
+	# =================================
+	# - Apply Inverse Transformations -
+	# =================================
+	
 	# Create and name decomposeMatrix node
 	dcm = mc.createNode('decomposeMatrix',n=source+'_decomposeMatrix')
 	
 	# Make connections
 	mc.connectAttr(source+'.inverseMatrix',dcm+'.inputMatrix',f=True)
-	if translate:
-		mc.connectAttr(dcm+'.outputTranslate',destination+'.translate',f=True)
-	if rotate:
-		mc.connectAttr(dcm+'.outputRotate',destination+'.rotate',f=True)
-	if scale:
-		mc.connectAttr(dcm+'.outputScale',destination+'.scale',f=True)
+	if translate: mc.connectAttr(dcm+'.outputTranslate',destination+'.translate',f=True)
+	if rotate: mc.connectAttr(dcm+'.outputRotate',destination+'.rotate',f=True)
+	if scale: mc.connectAttr(dcm+'.outputScale',destination+'.scale',f=True)
 	
-	# Return result
+	# =================
+	# - Return Result -
+	# =================
+	
 	return dcm
+
+def fromList(valueList):
+	'''
+	Create matrix from value list.
+	@param valueList: List of matrix values
+	@type valueList: list
+	'''
+	# Check Value List
+	if len(valueList) != 16:
+		raise Exception('Invalid value list! Expecting 16 element, found '+str(len(valueList)))
+	
+	# Create transformation matrix from input vaules
+	matrix = OpenMaya.MMatrix()
+	OpenMaya.MScriptUtil.createMatrixFromList(valueList,matrix)
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[0], 0, valueList[0])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[0], 1, valueList[1])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[0], 2, valueList[2])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[0], 3, valueList[3])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[1], 0, valueList[4])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[1], 1, valueList[5])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[1], 2, valueList[6])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[1], 3, valueList[7])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[2], 0, valueList[8])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[2], 1, valueList[9])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[2], 2, valueList[10])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[2], 3, valueList[11])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[3], 0, valueList[12])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[3], 1, valueList[13])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[3], 2, valueList[14])
+	#OpenMaya.MScriptUtil.setDoubleArray(matrix[3], 3, valueList[15])
+	
+	# Return Result
+	return matrix
+
+def asList(matrix):
+	'''
+	Return the specified matrix as a list
+	@param matrix: Matrix to return list for
+	@type matrix: maya.OpenMaya.MMatrix
+	'''
+	return [	matrix(0,0),matrix(0,1),matrix(0,2),matrix(0,3),
+				matrix(1,0),matrix(1,1),matrix(1,2),matrix(1,3),
+				matrix(2,0),matrix(2,1),matrix(2,2),matrix(2,3),
+				matrix(3,0),matrix(3,1),matrix(3,2),matrix(3,3),	]
+
+def printMatrix(matrix):
+	'''
+	Print the specified matrix values to the script editor
+	@param matrix: Matrix to print
+	@type matrix: maya.OpenMaya.MMatrix
+	'''
+	print ('%.3f' % matrix(0,0))+', '+('%.3f' % matrix(0,1))+', '+('%.3f' % matrix(0,2))+', '+('%.3f' % matrix(0,3))
+	print ('%.3f' % matrix(1,0))+', '+('%.3f' % matrix(1,1))+', '+('%.3f' % matrix(1,2))+', '+('%.3f' % matrix(1,3))
+	print ('%.3f' % matrix(2,0))+', '+('%.3f' % matrix(2,1))+', '+('%.3f' % matrix(2,2))+', '+('%.3f' % matrix(2,3))
+	print ('%.3f' % matrix(3,0))+', '+('%.3f' % matrix(3,1))+', '+('%.3f' % matrix(3,2))+', '+('%.3f' % matrix(3,3))

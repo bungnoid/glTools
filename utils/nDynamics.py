@@ -6,6 +6,8 @@ import glTools.utils.base
 import glTools.utils.mesh
 import glTools.utils.stringUtils
 
+from glTools.utils.weightList import WeightList
+
 import os.path
 
 # ----------
@@ -104,21 +106,21 @@ def isNConstraint(nConstraint):
 	'''
 	return isNType(nConstraint,'dynamicConstraint')
 
-def getConnectedNucleus(object):
+def getConnectedNucleus(obj):
 	'''
 	Get the nucleus node connected to the specified nDynamics object
 	@param name: Name for nucleus node
 	@type name: str
 	'''
 	# Check nNode
-	if mc.objectType(object) == 'transform':
-		object = mc.listRelatives(object,s=True,ni=True,pa=True)[0]
-	if not isNDynamicsNode(object):
-		nNode = getConnectedNNode(object)
-		if not nNode: raise Exception('No valid nDynamics node connected to "'+object+'"!')
+	if mc.objectType(obj) == 'transform':
+		obj = mc.listRelatives(obj,s=True,ni=True,pa=True)[0]
+	if not isNDynamicsNode(obj):
+		nNode = getConnectedNNode(obj)
+		if not nNode: raise Exception('No valid nDynamics node connected to "'+obj+'"!')
 		nNode = nNode[0]
 	else:
-		nNode = object
+		nNode = obj
 	
 	# Check nucleus connections
 	nucleusConn = mc.listConnections(nNode,type='nucleus')
@@ -127,7 +129,7 @@ def getConnectedNucleus(object):
 	if nucleusConn: return nucleusConn[0]
 	else: return ''
 
-def getConnectedNNode(object,nType=''):
+def getConnectedNNode(obj,nType=''):
 	'''
 	@param object: Object to find connected nNode for
 	@type object: str
@@ -135,12 +137,13 @@ def getConnectedNNode(object,nType=''):
 	@type nType: str
 	'''
 	# Check object exists
-	if not mc.objExists(object): raise Exception('Object "'+object+'" does not exist!')
+	if not mc.objExists(obj):
+		raise Exception('Object "'+obj+'" does not exist!')
 	
 	# Check nNode
-	nNode = object
-	if mc.objectType(object) == 'transform':
-		nNodeShape = mc.listRelatives(object,s=True,ni=True,pa=True)
+	nNode = obj
+	if mc.objectType(obj) == 'transform':
+		nNodeShape = mc.listRelatives(obj,s=True,ni=True,pa=True)
 		if nNodeShape: nNode = nNodeShape[0]
 	if isNDynamicsNode(nNode):
 		if not nType or nType == mc.objectType(nNode):
@@ -161,32 +164,42 @@ def getConnectedNNode(object,nType=''):
 		nNodeConn = mc.listConnections(nNode,type='nParticle',shapes=True)
 		if nNodeConn: return list(set(nNodeConn))
 	
+	# Check nComponent
+	if not nType or nType == 'nComponent':
+		nNodeConn = mc.listConnections(nNode,type='nComponent',shapes=True)
+		if nNodeConn: return list(set(nNodeConn))
+	
 	# No nNode found, return empty result
 	return []
 
-def getConnectedNCloth(object):
+def getConnectedNCloth(obj):
 	'''
 	Return the nCloth node connected to the specified object
 	@param object: Object to find connected nNode for
 	@type object: str
 	'''
-	return getConnectedNNode(object,'nCloth') 
+	return getConnectedNNode(obj,'nCloth')
 
-def getConnectedNRigid(object):
+def getConnectedNRigid(obj):
 	'''
 	Return the nRigid node connected to the specified object
 	@param object: Object to find connected nNode for
 	@type object: str
 	'''
-	return getConnectedNNode(object,'nRigid')
+	return getConnectedNNode(obj,'nRigid')
 
-def getConnectedNParticle(object):
+def getConnectedNParticle(obj):
 	'''
 	Return the nParticle node connected to the specified object
 	@param object: Object to find connected nNode for
 	@type object: str
 	'''
-	return getConnectedNNode(object,'nParticle')
+	return getConnectedNNode(obj,'nParticle')
+
+def getConnectedNComponent(obj):
+	'''
+	'''
+	return getConnectedNNode(obj,'nComponent')
 
 def getConnectedMesh(nNode,returnShape=False):
 	'''
@@ -281,8 +294,9 @@ def createNCloth(mesh,nucleus='',worldSpace=False,prefix=''):
 	
 	# Check prefix
 	if not prefix:
-		if mesh.count('_'): prefix = glTools.utils.stringUtils.stripSuffix(mesh)
+		if '_' in mesh: prefix = glTools.utils.stringUtils.stripSuffix(mesh)
 		else: prefix = mesh
+		if ':' in prefix: prefix = prefix.split(':')[-1]
 	
 	# Check nucleus
 	if nucleus:
@@ -326,8 +340,9 @@ def createNRigid(mesh,nucleus='',prefix=''):
 	
 	# Check prefix
 	if not prefix:
-		if mesh.count('_'): prefix = glTools.utils.stringUtils.stripSuffix(mesh)
+		if '_' in mesh: prefix = glTools.utils.stringUtils.stripSuffix(mesh)
 		else: prefix = mesh
+		if ':' in prefix: prefix = prefix.split(':')[-1]
 		
 	# Check nucleus
 	if nucleus:
@@ -578,7 +593,34 @@ def setVertexWeights(nCloth,attr,wt):
 	nCloth = connNCloth[0]
 	
 	# Set vertex weights
-	mc.setAttr(nCloth+'.'+attr+'PerVertex',wt,type='doubleArray')
+	mc.setAttr(nCloth+'.'+attr+'PerVertex',list(wt),type='doubleArray')
+
+def saveWeightList(nCloth,attr,filePath=None,force=False):
+	'''
+	'''
+	# Build Weight List
+	wt = getVertexWeights(nCloth,attr)
+	wtList = WeightList(wt)
+	
+	# Save Weight List
+	if filePath: filePath = wtList.saveAs(filePath,force)
+	else: filePath = wtList.saveAs()
+	
+	# Return Result
+	return filePath
+
+def loadWeightList(nCloth,attr,filePath=None,apply=True):
+	'''
+	'''
+	# Load Weight List
+	wt = WeightList()
+	wt = wt.load(filePath)
+	
+	# Apply Weight List
+	if apply: setVertexWeights(nCloth,attr,wt)
+	
+	# Return Result
+	return wt
 
 def loadWeightMap(nCloth,attr,filePath,loadAsVertexMap=False):
 	'''

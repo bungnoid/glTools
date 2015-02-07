@@ -4,6 +4,52 @@ import maya.OpenMaya as OpenMaya
 import glTools.utils.base
 import glTools.utils.selection
 
+componentFilter = [28,30,31,32,34,35,36,37,38,46,47]
+
+meshFilter = [31,32,34,35]
+subdFilter = [36,37,38]
+nurbsFilter = [28,30]
+curveFilter = [28,30,40]
+surfaceFilter = [28,30,42]
+
+meshVertFilter = 31
+meshEdgeFilter = 32
+meshFaceFilter = 34
+
+latticeFilter = 46
+particleFilter = 47
+
+def isComponent(component):
+	'''
+	Return True if specified object is a valid shape component.
+	Else return False.
+	@param component: Object to test as component
+	@type component: str
+	'''
+	# Check Components
+	return bool(mc.filterExpand(component,ex=True,sm=componentFilter))
+
+def isIntermediateShapeComponent(component):
+	'''
+	Return True if specified object is a valid component of an intermediate shape.
+	Else return False.
+	@param component: Object to test as intermediate shape component
+	@type component: str
+	'''
+	# Check Component
+	if not isComponent(component): return False
+	
+	# Check Object
+	componentObj = mc.ls(component,o=True)[0]
+	
+	# Check Intermediate Object
+	if mc.attributeQuery('intermediateObject',n=componentObj,ex=True):
+		if mc.getAttr(componentObj+'.intermediateObject'):
+			return True
+	
+	# Return Result
+	return False
+
 def getComponentCount(geometry):
 	'''
 	Returns the number of individual components for a given geometry.
@@ -12,12 +58,12 @@ def getComponentCount(geometry):
 	'''
 	# Check geometry
 	if not mc.objExists(geometry):
-		raise UserInputError('Object '+geometry+' does not exist!')
+		raise Exception('Object '+geometry+' does not exist!')
 	
 	# Check shape
 	geomObj = glTools.utils.base.getMObject(geometry)
 	if geomObj.hasFn(OpenMaya.MFn.kTransform):
-		geomShape = mc.listRelatives(geometry,s=True,ni=True)[0]
+		geomShape = mc.listRelatives(geometry,s=True,ni=True,pa=True)[0]
 	
 	# Get geometry path
 	geomPath = glTools.utils.base.getMDagPath(geometry)
@@ -63,20 +109,31 @@ def index(component):
 	@param component: The component to return the index of
 	@type component: str
 	'''
-	# Initialize wrapper objects
-	compObj = OpenMaya.MObject()
-	objPath = OpenMaya.MDagPath()
-	indexList = OpenMaya.MIntArray()
-	selectionList = OpenMaya.MSelectionList()
-	# Get component as selection
-	OpenMaya.MGlobal.getSelectionListByName(component,selectionList)
-	selectionList.getDagPath(0,objPath,compObj)
+	# Get component selection elelments
+	comp = glTools.utils.selection.getSelectionElement(component,element=0)
 	# Get index from component object
-	componentFn = OpenMaya.MFnSingleIndexedComponent(compObj)
+	indexList =  OpenMaya.MIntArray()
+	componentFn = OpenMaya.MFnSingleIndexedComponent(comp[1])
 	componentFn.getElements(indexList)
-	index = indexList[0]
 	# Return result
-	return index
+	return indexList[0]
+
+def singleIndexList(componentList):
+	'''
+	Return a list of component indices for the specified component list.
+	Only works for single indexed components, such as mesh vertices, faces, edges or NURBS curve CV's.
+	All components should be from the same shape/geometry. If components of multiple shapes are selected, only components of the first shape will be used.
+	@param componentList: The component list to return the indices for.
+	@type componentList: list
+	'''
+	# Get Selection Elements
+	sel = glTools.utils.selection.getSelectionElement(componentList,element=0)
+	# Get Component Indices
+	indexList =  OpenMaya.MIntArray()
+	componentFn = OpenMaya.MFnSingleIndexedComponent(sel[1])
+	componentFn.getElements(indexList)
+	# Return result
+	return list(indexList)
 
 def getComponentIndexList(componentList=[]):
 	'''
@@ -92,8 +149,8 @@ def getComponentIndexList(componentList=[]):
 		componentList = [componentList]
 	
 	# Get selection if componentList is empty
-	if not componentList: componentList = mc.ls(sl=1)
-	if not componentList: return componentIndexList
+	if not componentList: componentList = mc.ls(sl=True,fl=True) or []
+	if not componentList: return []
 	
 	# Get MSelectionList
 	selList = OpenMaya.MSelectionList()
@@ -144,14 +201,17 @@ def getComponentIndexList(componentList=[]):
 			# Get object component MObject
 			componentSelList.getDagPath(0,selPath,componentObj)
 		
-		# Check shape type
-		#------------------
+		# =======================
+		# - Check Geometry Type -
+		# =======================
+		
 		# MESH / NURBS CURVE
 		if (selPath.apiType() == OpenMaya.MFn.kMesh) or (selPath.apiType() == OpenMaya.MFn.kNurbsCurve):
 			indexList = OpenMaya.MIntArray()
 			componentFn = OpenMaya.MFnSingleIndexedComponent(componentObj)
 			componentFn.getElements(indexList)
 			componentIndexList[selPath.partialPathName()] = list(indexList)
+		
 		# NURBS SURFACE
 		if selPath.apiType() == OpenMaya.MFn.kNurbsSurface:
 			indexListU = OpenMaya.MIntArray()
@@ -159,6 +219,7 @@ def getComponentIndexList(componentList=[]):
 			componentFn = OpenMaya.MFnDoubleIndexedComponent(componentObj)
 			componentFn.getElements(indexListU,indexListV)
 			componentIndexList[selPath.partialPathName()] = zip(list(indexListU),list(indexListV))
+		
 		# LATTICE
 		if selPath.apiType() == OpenMaya.MFn.kLattice:
 			indexListS = OpenMaya.MIntArray()
@@ -168,7 +229,7 @@ def getComponentIndexList(componentList=[]):
 			componentFn.getElements(indexListS,indexListT,indexListU)
 			componentIndexList[selPath.partialPathName()] = zip(list(indexListS),list(indexListT),list(indexListU))
 	
-	# Return dictionary
+	# Return Result
 	return componentIndexList
 
 def getSingleIndexComponentList(componentList=[]):
@@ -178,27 +239,32 @@ def getSingleIndexComponentList(componentList=[]):
 	@param componentList: A list of component names. if empty will default to selection.
 	@type componentList: list
 	'''
-	# Initialize return dictionary
-	singleIndexList = {}
-	
-	# Get selection if componentList is empty
+	# Check Component List
 	if not componentList: componentList = mc.ls(sl=True)
 	if not componentList: return singleIndexList
 	
-	# Get component selection
+	# Initialize Result
+	singleIndexList = {}
+	
+	# Get Component Selection
 	componentSel = getComponentIndexList(componentList)
 	
-	# Iterate through shape keys
+	# Iterate Through Shape Keys
 	shapeList = componentSel.keys()
 	for shape in shapeList:
+		
+		# Get Shape Component Indices
 		indexList = componentSel[shape]
-		# Check transform
+		
+		# Check Transform
 		if mc.objectType(shape) == 'transform':
-			shape = mc.listRelatives(shape,ni=True)[0]
-		# Check mesh or curve
+			shape = mc.listRelatives(shape,ni=True,pa=True)[0]
+		
+		# Check Mesh or Curve
 		if (mc.objectType(shape) == 'mesh') or (mc.objectType(shape) == 'nurbsCurve'):
 			singleIndexList[shape] = indexList
-		# Check surface
+			
+		# Check Surface
 		elif mc.objectType(shape) == 'nurbsSurface':
 			# Get nurbsSurface function set
 			surfList = OpenMaya.MSelectionList()
@@ -211,13 +277,14 @@ def getSingleIndexComponentList(componentList=[]):
 			# Check for periodic surface
 			if surfFn.formInV() == surfFn.kPeriodic: numV -= surfFn.degreeV()
 			singleIndexList[shape] = [(i[0]*numV)+i[1] for i in indexList]
-		# Check lattice
+			
+		# Check Lattice
 		elif (mc.objectType(shape) == 'lattice'):
 			sDiv = mc.getAttr(shape+'.sDivisions')
 			tDiv = mc.getAttr(shape+'.tDivisions')
-			singleIndexList[shape] = [i[0]+(i[1]*sDiv)+(i[2]*sdiv*tDiv) for i in indexList]
+			singleIndexList[shape] = [i[0]+(i[1]*sDiv)+(i[2]*sDiv*tDiv) for i in indexList]
 	
-	# Return result
+	# Return Result
 	return singleIndexList
 
 def getSingleIndex(obj,index):
@@ -229,13 +296,16 @@ def getSingleIndex(obj,index):
 	@param index: Multi element index of component.
 	@type index: list
 	'''
-	# Get shape node
+	# Get Shape
 	if mc.objectType(obj) == 'transform': 
 		obj = glTools.utils.selection.getShapes(obj,True,False)[0]
+	
 	# Mesh
 	if mc.objectType(obj) == 'mesh': return index
+	
 	# Nurbs Curve
 	if mc.objectType(obj) == 'nurbsCurve': return index
+	
 	# Nurbs Surface
 	if mc.objectType(obj) == 'nurbsSurface':
 		# Get nurbsSurface function set
@@ -251,11 +321,74 @@ def getSingleIndex(obj,index):
 			numV -= surfFn.degreeV()
 		# Get Single Index
 		return (index[0] * numV) + index[1]
+	
 	# Lattice
 	elif mc.objectType(obj) == 'lattice':
 		sDiv = mc.getAttr(obj+'.sDivisions')
 		tDiv = mc.getAttr(obj+'.tDivisions')
 		return (index[0] + (index[1] * sDiv) + (index[2] * sdiv * tDiv) )
+	
+	# Return Result
+	return None
+	
+def getSingleIndexFromComponent(component):
+	'''
+	Convert a 2 or 3 value index to a single value index.
+	Returns the single element index of the given component.
+	@param component: Component to get single index from.
+	@type component: str
+	'''
+	# Check component
+	if not mc.objExists(component):
+		raise Exception('Component "'+component+'" does not exist!')
+	
+	# Get selection elements
+	comp = glTools.utils.selection.getSelectionElement(component)
+	shape = comp[0].partialPathName()
+	shapeType = mc.objectType(shape)
+	
+	# Check Mesh
+	if shapeType == 'mesh':
+		indexList = OpenMaya.MIntArray()
+		componentFn = OpenMaya.MFnSingleIndexedComponent(comp[1])
+		componentFn.getElements(indexList)
+		# Return Index
+		return indexList[0]
+		
+	# Nurbs Curve
+	if shapeType == 'nurbsCurve':
+		indexList = OpenMaya.MIntArray()
+		componentFn = OpenMaya.MFnSingleIndexedComponent(comp[1])
+		componentFn.getElements(indexList)
+		# Return Index
+		return indexList[0]
+	
+	# Nurbs Surface
+	if shapeType == 'nurbsSurface':
+		indexListU = OpenMaya.MIntArray()
+		indexListV = OpenMaya.MIntArray()
+		componentFn = OpenMaya.MFnDoubleIndexedComponent(comp[1])
+		componentFn.getElements(indexListU,indexListV)
+		# Get Surface Info
+		surfFn = OpenMaya.MFnNurbsSurface(comp[0])
+		numV = surfFn.numCVsInV()
+		if surfFn.formInV() == surfFn.kPeriodic:
+			numV -= surfFn.degreeV()
+		# Return Index
+		return (indexListU[0] * numV) + indexListV[0]
+	
+	# Lattice
+	if shapeType == 'lattice':
+		indexListS = OpenMaya.MIntArray()
+		indexListT = OpenMaya.MIntArray()
+		indexListU = OpenMaya.MIntArray()
+		componentFn = OpenMaya.MFnTripleIndexedComponent(comp[1])
+		componentFn.getElements(indexListS,indexListT,indexListU)
+		# Get Lattice Info
+		sDiv = mc.getAttr(shape+'.sDivisions')
+		tDiv = mc.getAttr(shape+'.tDivisions')
+		# Return Index
+		return (indexListS[0] + (indexListT[0] * sDiv) + (indexListU[0] * sdiv * tDiv) )
 
 def getMultiIndex(obj,index):
 	'''
@@ -271,10 +404,14 @@ def getMultiIndex(obj,index):
 		obj = glTools.utils.selection.getShapes(obj,True,False)[0]
 	
 	# Mesh
-	if mc.objectType(obj) == 'mesh': return [index]
+	if mc.objectType(obj) == 'mesh':
+		print('Component specified is a mesh vertex! No multi index information for single element indices!!')
+		return [index]
 	
 	# Nurbs Curve
-	if mc.objectType(obj) == 'nurbsCurve':return [index]
+	if mc.objectType(obj) == 'nurbsCurve':
+		print('Component specified is a curve CV! No multi index information for single element indices!!')
+		return [index]
 	
 	# Nurbs Surface
 	if mc.objectType(obj) == 'nurbsSurface':
@@ -301,26 +438,26 @@ def getMultiIndex(obj,index):
 def getComponentStrList(geometry,componentIndexList=[]):
 	'''
 	Return a string list containing all the component points of the specified geometry object
-	@param geometry: Geometry whose components to return
+	@param geometry: Geometry to return components for
 	@type geometry: str
 	@param componentIndexList: Component indices to return names for. If empty, all components will be returned
 	@type componentIndexList: list
 	'''
 	# Check object
 	if not mc.objExists(geometry):
-		raise UserInputError('Object '+geometry+' does not exist!')
+		raise Exception('Object '+geometry+' does not exist!')
 	
 	# Check transform
 	mObj = glTools.utils.base.getMObject(geometry)
 	if mObj.hasFn(OpenMaya.MFn.kTransform):
 		geometry = glTools.utils.selection.getShapes(geometry,True,False)
 		if geometry: geometry = geometry[0]
-		else: raise UserInputError('Object '+geometry+' is not a valid geometry object!')
+		else: raise Exception('Object '+geometry+' is not a valid geometry object!')
 	
 	# Check type
 	mObj = glTools.utils.base.getMObject(geometry)
 	if not mObj.hasFn(OpenMaya.MFn.kShape):
-		raise UserInputError('Object "'+geometry+'" is not a valid geometry object!')
+		raise Exception('Object "'+geometry+'" is not a valid geometry object!')
 	
 	# Get component multiIndex list
 	componentStrList = []
@@ -378,13 +515,14 @@ def rotate(componentList=[],rotate=(0.0,0.0,0.0),pivot='center',userPivot=(0,0,0
 	elif pivot == 'user':
 		piv = userPivot
 	else:
-		raise UserInputError('Invalid pivot option - "'+pivot+'"! Specify "object", "center" or "user"!!')
+		raise Exception('Invalid pivot option - "'+pivot+'"! Specify "object", "center" or "user"!!')
 	
-	# Rotate components
+	# Rotate Components
 	mc.rotate(rotate[0],rotate[1],rotate[2],componentList,p=piv,ws=worldSpace,os=not worldSpace)
 
 def scale(componentList=[],scale=(1.0,1.0,1.0),pivot='center',userPivot=(0,0,0),worldSpace=False):
 	'''
+	Scale the specified components based on the input argument values.
 	@param componentList: List of components to scale
 	@type componentList: list
 	@param scale: Scale to apply to the component list
@@ -404,15 +542,15 @@ def scale(componentList=[],scale=(1.0,1.0,1.0),pivot='center',userPivot=(0,0,0),
 	if pivot == 'center':
 		piv = getCenter(componentList)
 	elif pivot == 'object':
-		shape = mc.listRelatives(componentList[0],p=True)[0]
-		obj = mc.listRelatives(shape,p=True,type='transform')[0]
+		shape = mc.listRelatives(componentList[0],p=True,pa=True)[0]
+		obj = mc.listRelatives(shape,p=True,type='transform',pa=True)[0]
 		piv = mc.xform(obj,q=True,ws=True,rp=True)
 	elif pivot == 'user':
 		piv = userPivot
 	else:
-		raise UserInputError('Invalid pivot option - "'+pivot+'"! Specify "object", "center" or "user"!!')
+		raise Exception('Invalid pivot option - "'+pivot+'"! Specify "object", "center" or "user"!!')
 	
-	# Scale components
+	# Scale Components
 	if worldSpace:
 		for component in componentList:
 			pnt = mc.pointPosition(component)
@@ -421,3 +559,132 @@ def scale(componentList=[],scale=(1.0,1.0,1.0),pivot='center',userPivot=(0,0,0),
 			mc.move(pnt[0],pnt[1],pnt[2],component,a=True,ws=True)
 	else:
 		mc.scale(scale[0],scale[1],scale[2],componentList,p=piv)
+
+def expandVertexSelection(vtxSel,useFace=False):
+	'''
+	Expand the specified vertex selection list.
+	@param vtxSel: Vertex selection list to expand.
+	@type vtxSel: list
+	@param useFace: Expand the selection using face connection instead of edge connection.
+	@type useFace: bool
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	# Check Vertex Selection
+	vtxSel = mc.filterExpand(vtxSel,sm=31)
+	if not vtxSel: raise Exception('Invalid vertex selection!')
+	
+	# ====================
+	# - Expand Selection -
+	# ====================
+	
+	conSel = []
+	if useFace:
+		# Convert To Faces
+		conSel = mc.polyListComponentConversion(vtxSel,fv=True,tf=True,internal=False)
+	else:
+		# Convert To Faces
+		conSel = mc.polyListComponentConversion(vtxSel,fv=True,te=True,internal=False)
+	# Convert To Vertex
+	newSel = mc.polyListComponentConversion(conSel,ff=True,fe=True,tv=True,internal=False)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return newSel
+
+def shrinkVertexSelection(vtxSel):
+	'''
+	Shrink the specified vertex selection list.
+	@param vtxSel: Vertex selection list to expand.
+	@type vtxSel: list
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	# Check Vertex Selection
+	vtxSel = mc.filterExpand(vtxSel,sm=31)
+	if not vtxSel: raise Exception('Invalid vertex selection!')
+	
+	# ====================
+	# - Shrink Selection -
+	# ====================
+	
+	# Convert To Faces
+	conSel = mc.polyListComponentConversion(vtxSel,fv=True,tf=True,internal=True)
+	# Convert To Vertex
+	newSel = mc.polyListComponentConversion(conSel,ff=True,fe=True,tv=True,internal=True)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return newSel
+
+def removeIntermediateShapeComponents(componentList):
+	'''
+	Return a copy of the specified component list with all intermediate shape components removed.
+	@param componentList: List of components to remove intermediate shape components from.
+	@type componentList: list
+	'''
+	# Check Component List
+	if not componentList: return []
+	
+	# Remove Intermediate Shape Components
+	outComponentList = [i for i in componentList if not isIntermediateShapeComponent(i)]
+	
+	# Return Result
+	return outComponentList
+
+def getNonIntermediateShapeComponent(component):
+	'''
+	Return the coresponding non-intermediate shape components for the spceified intermediate shape component.
+	@param component: Intermediate shape component to get non-intermediate equivalent from.
+	@type component: str
+	'''
+	# Check Component
+	if not isComponent(component):
+		raise Exception('Object "'+component+'" is not a valid shape component!')
+	
+	# Check Intermediate Shape Component
+	if not isIntermediateShapeComponent(component):
+		return component
+	
+	# Get Non-Intermediate Equivalent
+	componentObj = mc.ls(component,o=True)[0]
+	componentShape = componentObj
+	componentObj = mc.listRelatives(componentShape,p=True,pa=True)[0]
+	componentOut = mc.listRelatives(componentObj,s=True,ni=True,pa=True)
+	if not componentOut:
+		raise Exception('Unable to determine non-intermediate equivalent component!')
+	nonIntComponent = component.replace(componentShape,componentOut[0])
+	
+	# Return Result
+	return nonIntComponent
+
+def replaceIntermediateShapeComponents(componentList):
+	'''
+	Return a copy of the specified component list with all intermediate shape components replaced with non-intermediate equivalents.
+	@param componentList: List of components to replace intermediate shape components from.
+	@type componentList: list
+	'''
+	# Check Component List
+	if not componentList: return []
+	
+	# Replace Intermediate Shape Components
+	outComponentList = []
+	for i in componentList:
+		if isIntermediateShapeComponent(i):
+			nonIntComponent = getNonIntermediateShapeComponent(i)
+			if not nonIntComponent in outComponentList:
+				outComponentList.append(nonIntComponent)
+		else:
+			if not i in outComponentList:
+				outComponentList.append(i)
+	
+	# Return Result
+	return outComponentList

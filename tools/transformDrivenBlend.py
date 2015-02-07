@@ -1,5 +1,29 @@
 import maya.cmds as mc
 
+def freezeCtrlScale(ctrl):
+	'''
+	'''
+	grp = mc.listRelatives(ctrl,p=True)[0]
+	mdn = ctrl.replace('ctrl','multiplyDivide')
+	mdn = mc.createNode('multiplyDivide',n=mdn)
+	mc.connectAttr(grp+'.s',mdn+'.input2',f=True)
+	mc.setAttr(mdn+'.input1',1.0,1.0,1.0)
+	mc.setAttr(mdn+'.operation',2)
+	mc.connectAttr(mdn+'.output',ctrl+'.s',f=True)
+	
+def unfreezeCtrlScale(ctrl):
+	'''
+	'''
+	mdn = mc.listConnections(ctrl+'.s',s=True,d=False)
+	if mdn: mc.delete(mdn)
+	
+def setTranslateLimits(ctrl,tx=True,ty=True,tz=True):
+	'''
+	'''
+	if(tx): mc.transformLimits(ctrl,tx=(-1.0,1.0),etx=(1,1))
+	if(ty): mc.transformLimits(ctrl,ty=(-1.0,1.0),ety=(1,1))
+	if(tz):   mc.transformLimits(ctrl,tz=(-1.0,1.0),etz=(1,1))
+		
 def driveShape(blendShape,target,driveAttr,minValue=-1.5,maxValue=1.5,prefix=''):
 	'''
 	@param blendShape: The blendShape node to drive

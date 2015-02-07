@@ -3,6 +3,99 @@ import maya.mel as mm
 
 import os.path
 
+import glTools.utils.namespace
+
+import ika.maya.sgxml
+
+def loadAbcImportPlugin():
+	'''
+	Load AbcImport plugin
+	'''
+	# Load AbcImport plugin
+	if not mc.pluginInfo('AbcImport',q=True,l=True):
+		try:
+			mc.loadPlugin('AbcImport', quiet=True)
+		except:
+			raise Exception('Error loading AbcImport plugin!')
+
+def loadAbcExportPlugin():
+	'''
+	Load AbcExport plugin
+	'''
+	# Load AbcExport plugin
+	if not mc.pluginInfo('AbcExport',q=True,l=True):
+		try:
+			mc.loadPlugin('AbcExport', quiet=True)
+		except:
+			raise Exception('Error loading AbcExport plugin!')
+
+def loadGpuCachePlugin():
+	'''
+	Load gpuCache plugin
+	'''
+	# Load gpuCache plugin
+	if not mc.pluginInfo('gpuCache',q=True,l=True):
+		try:
+			mc.loadPlugin('gpuCache', quiet=True)
+		except:
+			raise Exception('Error loading gpuCache plugin!')
+
+def loadIkaGpuCachePlugin():
+	'''
+	Load ikaGpuCache plugin
+	'''
+	# Load ikaGpuCache plugin
+	if not mc.pluginInfo('ikaGpuCache',q=True,l=True):
+		try:
+			mc.loadPlugin('ikaGpuCache', quiet=True)
+		except:
+			raise Exception('Error loading ikaGpuCache plugin!')
+
+def isAlembicNode(cacheNode):
+	'''
+	Check if the specified node is a valid Alembic cache node
+	@param cacheNode: Object to query
+	@type cacheNode: str
+	'''
+	# Check object exists
+	if not mc.objExists(cacheNode): return False
+	
+	# Check node type
+	if mc.objectType(cacheNode) != 'AlembicNode': return False
+	
+	# Return result
+	return True
+
+def isGpuCacheNode(gpuCacheNode):
+	'''
+	Check if the specified node is a valid GPU cache node
+	@param gpuCacheNode: Object to query
+	@type gpuCacheNode: str
+	'''
+	# Check object exists
+	if not mc.objExists(gpuCacheNode): return False
+	
+	# Check node type
+	if mc.objectType(gpuCacheNode) != 'gpuCache': return False
+	
+	# Return result
+	return True
+
+def isIkaGpuCacheNode(ikaGpuCacheNode):
+	'''
+	Check if the specified node is a valid ika GPU cache node
+	@param ikaGpuCacheNode: Object to query
+	@type ikaGpuCacheNode: str
+	'''
+	# Check object exists
+	if not mc.objExists(ikaGpuCacheNode): return False
+	
+	# Check node type
+	if mc.objectType(ikaGpuCacheNode) != 'ikaGpuCache': return False
+	
+	# Return result
+	return True
+
 def disconnectTime(cache):
 	'''
 	Disconnect the time attribute for the given cache node
@@ -31,7 +124,7 @@ def connectTime(cache,timeAttr='time1.outTime'):
 	# Disconnect time plug
 	mc.connectAttr(timeAttr,cache+'.time',f=True)
 
-def importCache(geo,cacheFile):
+def importMCCache(geo,cacheFile):
 	'''
 	Import and connect geometry cache file to the specified geometry
 	@param geo: Geometry to load cache to
@@ -48,7 +141,7 @@ def importCache(geo,cacheFile):
 	# Load cache
 	mm.eval('doImportCacheFile "'+cacheFile+'" "" {"'+geo+'"} {}')
 
-def importCacheList(geoList,cachePath,cacheFileList=[]):
+def importMCCacheList(geoList,cachePath,cacheFileList=[]):
 	'''
 	Import and connect geometry cache files from a specified path to the input geometry list
 	@param geoList: List of geometry to load cache onto
@@ -89,9 +182,9 @@ def importCacheList(geoList,cachePath,cacheFileList=[]):
 			raise Exception('Cache file "'+cacheFile+'" does not exist!')
 		
 		# Import cache
-		importCache(geoList[i],cacheFile)
+		importMCCache(geoList[i],cacheFile)
 	
-def exportCache(geo,cacheFile,startFrame=1,endFrame=100,useTimeline=True,filePerFrame=False,cachePerGeo=True,forceExport=False):
+def exportMCCache(geo,cacheFile,startFrame=1,endFrame=100,useTimeline=True,filePerFrame=False,cachePerGeo=True,forceExport=False):
 	'''
 	@param geo: List of geometry to cache
 	@type geo: list
@@ -136,3 +229,327 @@ def exportCache(geo,cacheFile,startFrame=1,endFrame=100,useTimeline=True,filePer
 	# Export cache
 	mc.select(geo)
 	mm.eval('doCreateGeometryCache '+str(version)+' {"0","'+str(startFrame)+'","'+str(endFrame)+'","'+cacheDist+'","'+str(refresh)+'","'+cacheDir+'","'+str(int(cachePerGeo))+'","'+baseName+'","'+str(usePrefix)+'","'+cacheAction+'","'+str(int(forceExport))+'","1","1","0","0","mcc" };')
+	
+def importGpuCache(cachePath,cacheName='',namespace=''):
+	'''
+	Import GPU Alembic cache from file
+	@param cachePath: Alembic cache file path
+	@type cachePath: str
+	@param cacheName: Alembic cache name. If empty, use filename.
+	@type cacheName: str
+	'''
+	# =========
+	# - Check -
+	# =========
+	
+	# Load Import Plugin
+	loadAbcImportPlugin()
+	
+	# Check Cache Path
+	if not os.path.isfile(cachePath):
+		raise Exception('Cache path "'+cachePath+'" is not a valid file!')
+	
+	# Check Cache Name
+	if not cacheName:
+		cacheBase = os.path.basename(cachePath)
+		cacheName = os.path.splitext(cacheBase)[-1]
+	
+	# Check Namespace
+	if namespace:
+		if mc.namespace(ex=namespace):
+			NSind = 1
+			while(mc.namespace(ex=namespace+str(NSind))):
+				NSind += 1
+			namespace = namespace+str(NSind)
+	
+	# ==============
+	# - Load Cache -
+	# ==============
+	
+	# Create Cache Node
+	cacheNode = mc.createNode('gpuCache',name=cacheName+'Cache')
+	cacheParent = mc.listRelatives(cacheNode,p=True,pa=True)
+	cacheParent = mc.rename(cacheParent,cacheName)
+	
+	# Set Cache Path
+	mc.setAttr(cacheNode+'.cacheFileName',cachePath,type='string')
+	
+	# ===================
+	# - Apply Namespace -
+	# ===================
+	
+	if namespace:
+		
+		# Create Namespace (if necessary)
+		if not mc.namespace(ex=namespace): mc.namespace(add=namespace)
+		# Apply Namespace
+		cacheParent = mc.rename(cacheParent,namespace+':'+cacheParent)
+		# Update cacheNode
+		cacheNode = mc.listRelatives(cacheParent,s=True,pa=True)[0]
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return cacheParent
+
+def importAbcCache(cachePath='',cacheName='',namespace='',parent='',mode='import',debug=False):
+	'''
+	Import Alembic cache from file
+	@param cachePath: Alembic cache file path
+	@type cachePath: str
+	@param cacheName: Alembic cache name. If empty, use filename.
+	@type cacheName: str
+	@param namespace: Namespace for cache.
+	@type namespace: str
+	@param parent: Reparent the whole hierarchy under an existing node in the current scene.
+	@type parent: str
+	@param mode: Import mode. "import", "open" or "replace".
+	@type mode: str
+	@param debug: Turn on debug message printout.
+	@type debug: bool
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	# Load Import Plugin
+	loadAbcImportPlugin()
+	
+	# Check Cache Path
+	if not os.path.isfile(cachePath):
+		raise Exception('Cache path "'+cachePath+'" is not a valid file!')
+	
+	# Check Cache Name
+	if not cacheName:
+		cacheBase = os.path.basename(cachePath)
+		cacheName = os.path.splitext(cacheBase)[-1]
+	
+	# Check Namespace
+	if namespace:
+		if mc.namespace(ex=namespace):
+			NSind = 1
+			while(mc.namespace(ex=namespace+str(NSind))):
+				NSind += 1
+			namespace = namespace+str(NSind)
+	
+	# ==============
+	# - Load Cache -
+	# ==============
+	
+	cacheNode = mc.AbcImport(cachePath,mode=mode,debug=debug)
+	cacheNode = mc.rename(cacheNode,cacheName+'Cache')
+	
+	# Get Cache Nodes
+	cacheList = mc.listConnections(cacheNode,s=False,d=True)
+	
+	# Get Cache Roots
+	rootList = []
+	for cacheItem in cacheList:
+		root = cacheItem
+		while mc.listRelatives(root,p=True) != None:
+			root = mc.listRelatives(root,p=True,pa=True)[0]
+		if not rootList.count(root):
+				rootList.append(root)
+	
+	
+	# Add to Namespace
+	if namespace:
+		for root in rootList:
+			glTools.utils.namespace.addHierarchyToNS(root,namespace)
+	
+	# Parent
+	if parent:
+		
+		# Check Parent Transform
+		if not mc.objExists(parent):
+			parent = mc.group(em=True,n=parent)
+		
+		# Parent
+		mc.parent(rootList,parent)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return cacheNode
+
+def loadFromXml(xmlPath='',loadGpuCache=True,asXmlReference=False,frameOffset=0):
+	'''
+	Load Alembic cache from XML scenegraph file.
+	@param xmlPath: Scenegraph XML file path
+	@type xmlPath: str
+	@param loadGpuCache: Load as GPU cache.
+	@type loadGpuCache: bool
+	@param asXmlReference: Setup imported nodes as an XML Reference.
+	@type asXmlReference: bool
+	@param frameOffset: Apply a frame offset for al imported ikaGpuCache nodes.
+	@type frameOffset: int
+	'''
+	# =========
+	# - Check -
+	# =========
+	
+	# Check XML Path
+	if not xmlPath:
+		xmlPath = mc.fileDialog2(fileFilter='*.xml',dialogStyle=2,fileMode=1,caption='Load Scenegraph XML',okCaption='Load')
+		if not xmlPath: return []
+		xmlPath = xmlPath[0]
+	
+	# Check XML File
+	if not os.path.isfile(xmlPath):
+		raise Exception('Invalid file path! File "'+xmlPath+'" does not exists!')
+	
+	# Load Import Plugin
+	if loadGpuCache:
+		loadGpuCachePlugin()
+		try: loadIkaGpuCachePlugin()
+		except: print ('ikaGpuCache plugin not available!')
+	if not loadGpuCache:
+		loadAbcImportPlugin()
+	
+	# Check XML Path
+	if not os.path.isfile(xmlPath):
+		raise Exception('XML path "'+xmlPath+'" is not a valid file!')
+	
+	# =======================
+	# - Load Cache from XML -
+	# =======================
+	
+	# Load From XML
+	nodes = ika.maya.sgxml.loadFromXml(xmlPath,gpuCache=loadGpuCache,alembic=(not loadGpuCache))
+	
+	# Group XML Nodes
+	xmlGrp = mc.createNode('transform',n='XML_refGrp#')
+	mc.parent(nodes,xmlGrp)
+	
+	# ========================
+	# - Create XML Reference -
+	# ========================
+	
+	if asXmlReference:
+		
+		# Add Time Offset
+		ika.maya.sgxml.setupAlembicTimeOffset(xmlGrp,frameOffset)
+		
+		# Set Export Type
+		ika.maya.sgxml.setExportNodeType(xmlGrp,'ikaSgXmlReference',filepath=xmlPath)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return [xmlGrp,nodes]
+
+def loadAbcFromGpuCache(gpuCacheNode,debug=False):
+	'''
+	Load Alembic cache from a specified gpuCache node.
+	@param gpuCacheNode: GPU cache node to replace with alembic cache.
+	@type gpuCacheNode: str
+	@param debug: Print debug info to script editor
+	@type debug: bool
+	'''
+	# =========
+	# - Check -
+	# =========
+	
+	# Load Import Plugin
+	loadAbcImportPlugin()
+	
+	# Check GPU  Cache Node
+	if not isGpuCacheNode(gpuCacheNode):
+		raise Exception('Object "'+gpuCacheNode+'" is not a valid GPU Cache Node!')
+	
+	# =====================
+	# - Get Cache Details -
+	# =====================
+	
+	cachePath = mc.getAttr(gpuCacheNode+'.cacheFileName')
+	
+	# Get Cache Node Transform and Parent
+	cacheXform = mc.listRelatives(gpuCacheNode,p=True,pa=True)[0]
+	cacheParent = mc.listRelatives(cacheXform,p=True,pa=True)
+	if not cacheParent: cacheParent = ''
+	
+	# Get Cache Namespace
+	cacheNS = glTools.utils.namespace.getNS(gpuCacheNode)
+	
+	# Get Cache Name
+	cacheName = gpuCacheNode
+	if gpuCacheNode.count('Cache'):
+		cacheName = gpuCacheNode.replace('Cache','')
+	
+	# Delete GPU Cache
+	mc.delete(cacheXform)
+	
+	# ======================
+	# - Load Alembic Cache -
+	# ======================
+	
+	cacheNode = importAbcCache(cachePath,cacheName=cacheName,namespace=cacheNS,parent=cacheParent,mode='import',debug=debug)
+	#cacheXform = mc.listRelatives(cacheNode,p=True,pa=True)[0]
+	
+	# Parent Cache
+	#
+	if cacheParent: mc.parent(cacheXform,cacheParent)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return cacheNode
+
+def abcTimeOffset(offsetNode,offsetAttr='alembicTimeOffset',cacheList=[]):
+	'''
+	Setup a time offset attribute to control the incoming time value for the specified cache nodes.
+	@param offsetNode: Node that will hold the time offset attribute
+	@type offsetNode: str
+	@param offsetAttr: Time offset attribute name.
+	@type offsetAttr: str
+	@param cacheList: List of cache nodes to connect to time offset.
+	@type cacheList: list
+	'''
+	# =========
+	# - Check -
+	# =========
+	
+	# Check Cache List
+	if not cacheList: return ''
+	
+	# Check offsetNode
+	if not mc.objExists(offsetNode):
+		raise Exception('Offset node "'+offsetNode+'" does not exist!')
+	
+	# Check offsetAttr
+	if not offsetAttr: offsetAttr = 'alembicTimeOffset'
+	
+	# ========================
+	# - Add Offset Attribute -
+	# ========================
+	
+	if not mc.objExists(offsetNode+'.'+offsetAttr):
+		mc.addAttr(offsetNode,ln=offsetAttr,at='long',dv=0,k=True)
+	
+	# =======================
+	# - Connect Time Offset -
+	# =======================
+	
+	for cache in cacheList:
+		
+		# Get Current Time Connection
+		timeConn = mc.listConnections(cache+'.time',s=True,d=False,p=True)
+		if not timeConn: timeConn = ['time1.outTime']
+		
+		# Offset Node
+		addNode = mc.createNode('addDoubleLinear',n=cache+'_abcOffset_addDoubleLinear')
+		
+		# Connect to Offset Time
+		mc.connectAttr(timeConn[0],addNode+'.input1',f=True)
+		mc.connectAttr(offsetNode+'.'+offsetAttr,addNode+'.input2',f=True)
+		mc.connectAttr(addNode+'.output',cache+'.time',f=True)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return offsetNode+'.'+offsetAttr

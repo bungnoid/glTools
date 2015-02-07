@@ -4,6 +4,7 @@ import glTools.ui.utils
 import glTools.utils.attach
 import glTools.utils.curve
 import glTools.tools.createAlongCurve
+import glTools.utils.transform
 
 class UserInputError(Exception): pass
 class UIError(Exception): pass
@@ -357,4 +358,50 @@ def uniformRebuildCurveFromUI(close=False):
 	
 	# Cleanup
 	if close: mc.deleteUI(window)
+
+# Mirror Curve
+
+def mirrorCurveFromSel():
+	'''
+	Mirror curve shape based on selection
+	'''
+	# Get Selection
+	sel = mc.ls(sl=1,type=['transform','joint','nurbsCurve'])
+	if not sel: return
+	
+	# For Each Item in Selection
+	for item in sel:
+		
+		# Define Curve Shape
+		crv = ''
+		
+		# Check Transform
+		if glTools.utils.transform.isTransform(item):
+			# Get Shapes
+			itemShapes = mc.listRelatives(item,s=True,pa=True)
+			# Check Shapes
+			if not itemShapes:
+				print('Object "" is not a valid nurbsCurve! Skipping...')
+				continue
+			# Find Curve Shape
+			for shape in itemShapes:
+				if glTools.utils.curve.isCurve(shape):
+					crv = shape
+					break
+			# Check Curve
+			if not crv:
+				print('Object "" is not a valid nurbsCurve! Skipping...')
+				continue
+		else:
+			# Set Curve
+			crv = item
+		
+		# Find Mirror
+		mirrorCrv = ''
+		if crv.startswith('lf_'): mirrorCrv = crv.replace('lf_','rt_')
+		elif crv.startswith('rt_'): mirrorCrv = crv.replace('rt_','lf_')
+		else: print('Unable to determine mirror curve for "'+crv+'"! Skipping...')
+		
+	# Mirror Curve
+	glTools.utils.curve.mirrorCurve(crv,mirrorCrv)
 

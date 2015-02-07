@@ -1,8 +1,8 @@
 import maya.cmds as mc
+
 import glTools.utils.mathUtils
 import glTools.utils.matrix
-
-class UserInputError(Exception): pass
+import glTools.utils.reference
 
 def getAffectedJoints(ikHandle):
 	'''
@@ -11,8 +11,8 @@ def getAffectedJoints(ikHandle):
 	@type ikHandle: str
 	'''
 	# Check ikHandle
-	if not mc.objExists(ikHandle): raise UserInputError('IK handle '+ikHandle+' does not exist!')
-	if mc.objectType(ikHandle) != 'ikHandle': raise UserInputError('Object '+ikHandle+' is not a valid ikHandle!')
+	if not mc.objExists(ikHandle): raise Exception('IK handle '+ikHandle+' does not exist!')
+	if mc.objectType(ikHandle) != 'ikHandle': raise Exception('Object '+ikHandle+' is not a valid ikHandle!')
 	
 	# Get startJoint
 	startJoint = mc.listConnections(ikHandle+'.startJoint',s=True,d=False)[0]
@@ -41,9 +41,9 @@ def poleVectorPosition(ikHandle,poleVectorType='free',distanceFactor=1.0):
 	@type distanceFactor: float
 	'''
 	# Check ikHandle
-	if mc.objectType(ikHandle) != 'ikHandle': raise UserInputError('Object "'+ikHandle+'" is not a valid IK Handle!!')
+	if mc.objectType(ikHandle) != 'ikHandle': raise Exception('Object "'+ikHandle+'" is not a valid IK Handle!!')
 	if mc.listConnections(ikHandle+'.ikSolver',s=True,d=False)[0] != 'ikRPsolver':
-		raise UserInputError('IK Handle "'+ikHandle+'" does not use a pole vector!!')
+		raise Exception('IK Handle "'+ikHandle+'" does not use a pole vector!!')
 	
 	# Get IK chain details
 	ikJoints = getAffectedJoints(ikHandle)
@@ -80,7 +80,31 @@ def poleVectorPosition(ikHandle,poleVectorType='free',distanceFactor=1.0):
 		pvDist = glTools.utils.mathUtils.distanceBetween(startPos,elbowPos)*distanceFactor
 		pvPos = (startPos[0]+(poleVector[0]*pvDist),startPos[1]+(poleVector[1]*pvDist),startPos[2]+(poleVector[2]*pvDist))
 	else:
-		raise UserInputError('Invalid poleVector type supplied ("'+poleVectorType+'")!! Specify "free" or "fixed"!')
+		raise Exception('Invalid poleVector type supplied ("'+poleVectorType+'")!! Specify "free" or "fixed"!')
 	
 	# Return position
 	return pvPos
+
+def getLocalSolver(solverType):
+	'''
+	Get local (non-referenced) solver by type.
+	If no local solver found, create one.
+	@param solverType: IK solver type to return
+	@type solverType: str
+	'''
+	# Check Solver Type
+	solverTypeList = ['ikRPsolver','ikSCsolver','ikSplineSolver']
+	if not solverType in solverTypeList:
+		raise Exception('Invalid IK solver type "'+solverType+'"!')
+	
+	# Get Solvers
+	for solvers in mc.ls(exactType=solverType):
+		if not glTools.utils.reference.isReferenced(solvers):
+			return solver
+	
+	# No Solver Found, Create New
+	solver = mc.createNode(solverType)
+	mc.connectAttr(solver+'.message','ikSystem.ikSolver',na=True)
+	
+	# Return Result
+	return solver

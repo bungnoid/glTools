@@ -195,7 +195,7 @@ def export3DPointData(path,pt,start,end):
 	# Print result
 	print('3D point data exported to '+path)
 
-def export3DRotationData(path,pt,start,end,upVec=(0,1,0),rotateOrder='xyz'):
+def export3DRotationData(path,pt,start,end,upVec=(0,1,0),rotateOrder='xyz',absolute=True):
 	'''
 	Export raw 3D point position data to an ascii text file
 	@param path: Directory to save the 3D data export file to
@@ -208,6 +208,10 @@ def export3DRotationData(path,pt,start,end,upVec=(0,1,0),rotateOrder='xyz'):
 	@type end: int
 	@param upVec: Up vector used to contruct rotation matrix for non-transform point. 
 	@type upVec: list or tuple
+	@param rotateOrder: Output rotate order. 
+	@type rotateOrder: str
+	@param absolute: Output absolute values.  
+	@type absolute: bool
 	'''
 	# Check path
 	dirpath = path.replace(path.split('/')[-1],'')
@@ -226,8 +230,12 @@ def export3DRotationData(path,pt,start,end,upVec=(0,1,0),rotateOrder='xyz'):
 		# Set current frame
 		mc.currentTime(f)
 		
-		# Get object world space rotation
-		rot = getRotation(pt,upVec,rotateOrder)
+		if absolute:
+			# Get absolute local rotation values
+			rot = mc.getAttr(pt+'.r')[0]
+		else:
+			# Get object world space rotation
+			rot = getRotation(pt,upVec,rotateOrder)
 		
 		# Write data to file
 		file.write(str(rot[0]) + ' ' + str(rot[1]) + ' ' + str(rot[2]) + '\n')

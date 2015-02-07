@@ -98,7 +98,7 @@ def filterCurves():
 		# Check mode
 		if mc.radioButtonGrp('graphFilter_modeRBG',q=True,sl=True) == 1:
 			mc.selectionConnection('graphEditor1FromOutliner',e=True,clear=True)
-		attrs = mc.textScrollList('graphFilter_attrListTSL',q=True,si=True) 
+		attrs = mc.textScrollList('graphFilter_attrListTSL',q=True,si=True)
 		for attr in attrs: addCurveToEditor(attr)
 	 
 	# Update UI

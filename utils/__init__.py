@@ -8,12 +8,14 @@ import constraint
 import curve
 import curveConstraint
 import deformer
+import follicle
 import geometry
 import ik
 import joint
 import mathUtils
 import matrix
 import mesh
+import meshPtArray
 import nDynamics
 import resolution
 import skinCluster

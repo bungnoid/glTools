@@ -6,8 +6,6 @@ import glTools.utils.mesh
 import glTools.utils.deformer
 import glTools.tools.symmetryTable
 
-class UserInputError(Exception): pass
-
 def mirrorWeights(mesh,deformer,axis='x',posToNeg=True,refMesh=''):
 	'''
 	Mirror deformer weights
@@ -24,7 +22,7 @@ def mirrorWeights(mesh,deformer,axis='x',posToNeg=True,refMesh=''):
 	'''
 	# Check deformers
 	if not mc.objExists(deformer):
-		raise UserInputError('Deformer "'+deformer+'" does not exist!!')
+		raise Exception('Deformer "'+deformer+'" does not exist!!')
 	
 	# Check refMesh
 	if not refMesh: refMesh = mesh
@@ -62,9 +60,9 @@ def flipWeights(mesh,sourceDeformer,targetDeformer='',axis='x',refMesh=''):
 	'''
 	# Check deformers
 	if not mc.objExists(sourceDeformer):
-		raise UserInputError('Source deformer '+sourceDeformer+' does not exist!!')
+		raise Exception('Source deformer '+sourceDeformer+' does not exist!!')
 	if targetDeformer and not mc.objExists(targetDeformer):
-		raise UserInputError('Traget deformer '+targetDeformer+' does not exist!!')
+		raise Exception('Traget deformer '+targetDeformer+' does not exist!!')
 	if not targetDeformer:
 		targetDeformer = sourceDeformer
 	
@@ -78,7 +76,7 @@ def flipWeights(mesh,sourceDeformer,targetDeformer='',axis='x',refMesh=''):
 	
 	# Get symmetry table
 	axisIndex = {'x':0,'y':1,'z':2}[axis]
-	symTable = glTools.common.symmetryTable.SymmetryTable().buildSymTable(refMesh,axisIndex)
+	symTable = glTools.tools.symmetryTable.SymmetryTable().buildSymTable(refMesh,axisIndex)
 	
 	# Get current weights
 	wt = glTools.utils.deformer.getWeights(sourceDeformer,mesh)
@@ -114,20 +112,20 @@ def copyWeights(sourceMesh,targetMesh,sourceDeformer,targetDeformer):
 	'''
 	# Check source and target mesh
 	if not mc.objExists(sourceMesh):
-		raise UserInputError('Source mesh "'+sourceMesh+'" does not exist!!')
+		raise Exception('Source mesh "'+sourceMesh+'" does not exist!!')
 	if not mc.objExists(targetMesh):
-		raise UserInputError('Target mesh "'+targetMesh+'" does not exist!!')
+		raise Exception('Target mesh "'+targetMesh+'" does not exist!!')
 	
 	# Check deformers
 	if not mc.objExists(sourceDeformer):
-		raise UserInputError('Source deformer "'+sourceDeformer+'" does not exist!!')
+		raise Exception('Source deformer "'+sourceDeformer+'" does not exist!!')
 	if targetDeformer and not mc.objExists(targetDeformer):
-		raise UserInputError('Target deformer "'+targetDeformer+'" does not exist!!')
+		raise Exception('Target deformer "'+targetDeformer+'" does not exist!!')
 	if not targetDeformer: targetDeformer = sourceDeformer
 	
 	# Compare vertex count
 	if mc.polyEvaluate(sourceMesh,v=True) != mc.polyEvaluate(targetMesh,v=True):
-		raise UserInputError('Source and Target mesh vertex counts do not match!!')
+		raise Exception('Source and Target mesh vertex counts do not match!!')
 	
 	# Copy weights
 	wtList = glTools.utils.deformer.getWeights(sourceDeformer,sourceMesh)

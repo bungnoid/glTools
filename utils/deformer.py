@@ -3,14 +3,12 @@ import maya.OpenMaya as OpenMaya
 import maya.OpenMayaAnim as OpenMayaAnim
 
 import glTools.utils.attribute
+import glTools.utils.arrayUtils
 import glTools.utils.base
 import glTools.utils.geometry
 import glTools.utils.selection
 
 import re
-
-# Create exception class
-class UserInputError(Exception): pass
 
 def isDeformer(deformer):
 	'''
@@ -18,13 +16,67 @@ def isDeformer(deformer):
 	@param deformer: Name of deformer to query
 	@type deformer: str
 	'''
-	# Check deformer exists
+	# Check Deformer Exists
 	if not mc.objExists(deformer): return False
-	# Check deformer type
+	
+	# Check Deformer Type
 	nodeType = mc.nodeType(deformer,i=1)
 	if not nodeType.count('geometryFilter'): return False
+	
 	# Return result
 	return True
+
+def getDeformerList(nodeType='geometryFilter',affectedGeometry=[],regexFilter=''):
+	'''
+	Return a list of deformer that match the input criteria.
+	You can list deformers connected to specified geometry, by type and filter the results using regular expressions.
+	@param type: Deformer Type as string. Optional arg, only return deformers of specified type.
+	@type type: str
+	@param affectedGeometry: Affected geometry list. Optional arg that will list deformers connected to the specified geometry.
+	@type affectedGeometry: list
+	@param regexFilter: Regular Expression as string. Optional arg that will filter results.
+	@type regexFilter: str
+	'''
+	# Get Deformer List
+	deformerNodes = mc.ls(type=nodeType)
+	
+	# ===============================
+	# - Filter by Affected Geometry -
+	# ===============================
+	
+	if affectedGeometry:
+		if type(affectedGeometry) == str: affectedGeometry = [affectedGeometry]
+		historyNodes = mc.listHistory(affectedGeometry,groupLevels=True,pruneDagObjects=True)
+		deformerNodes = mc.ls(historyNodes,type=nodeType)
+	
+	# =========================
+	# - Remove Unwanted Nodes -
+	# =========================
+	
+	# Remove Duplicates
+	deformerNodes = glTools.utils.arrayUtils.removeDuplicates(deformerNodes)
+	
+	# Remove Tweak Nodes
+	tweakNodes = mc.ls(deformerNodes,type='tweak')
+	if tweakNodes: deformerNodes = [x for x in deformerNodes if not x in tweakNodes]
+	
+	# Remove TransferAttributes Nodes
+	transferAttrNodes = mc.ls(deformerNodes,type='transferAttributes')
+	if transferAttrNodes: deformerNodes = [x for x in deformerNodes if not x in transferAttrNodes]
+	
+	# ==================
+	# - Filter Results -
+	# ==================
+	
+	if regexFilter:
+		reFilter = re.compile(regexFilter)
+		deformerNodes = filter(reFilter.search, deformerNodes)	
+	
+	# =================	
+	# - Return Result -
+	# =================
+	
+	return deformerNodes
 
 def getDeformerFn(deformer):
 	'''
@@ -34,11 +86,14 @@ def getDeformerFn(deformer):
 	'''
 	# Checks
 	if not mc.objExists(deformer):
-		raise UserInputError('Deformer '+deformer+' does not exist!')
+		raise Exception('Deformer '+deformer+' does not exist!')
 	
 	# Get MFnWeightGeometryFilter
 	deformerObj = glTools.utils.base.getMObject(deformer)
-	deformerFn = OpenMayaAnim.MFnWeightGeometryFilter(deformerObj)
+	try:
+		deformerFn = OpenMayaAnim.MFnWeightGeometryFilter(deformerObj)
+	except: # is there a good exception type for this?
+		raise Exception('Could not get a geometry filter for deformer "'+deformer+'"!')
 	
 	# Return result
 	return deformerFn
@@ -51,14 +106,19 @@ def getDeformerSet(deformer):
 	'''
 	# Checks
 	if not mc.objExists(deformer):
-		raise UserInputError('Deformer '+deformer+' does not exist!')
+		raise Exception('Deformer '+deformer+' does not exist!')
+	if not isDeformer(deformer):
+		raise Exception('Object '+deformer+' is not a valid deformer!')
 	
-	# Get deformer set
-	deformerSet = mc.listConnections(deformer,s=False,d=True,type='objectSet',exactType=True)
-	if not deformerSet: raise UserInputError('Unable to determine deformer set!')
+	# Get Deformer Set
+	deformerObj = glTools.utils.base.getMObject(deformer)
+	deformerFn = OpenMayaAnim.MFnGeometryFilter(deformerObj)
+	deformerSetObj = deformerFn.deformerSet()
+	if deformerSetObj.isNull():
+		raise Exception('Unable to determine deformer set for "'+deformer+'"!')
 	
-	# Return result
-	return deformerSet[0]
+	# Return Result
+	return OpenMaya.MFnDependencyNode(deformerSetObj).name()
 
 def getDeformerSetFn(deformer):
 	'''
@@ -68,7 +128,7 @@ def getDeformerSetFn(deformer):
 	'''
 	# Checks
 	if not mc.objExists(deformer):
-		raise UserInputError('Deformer '+deformer+' does not exist!')
+		raise Exception('Deformer '+deformer+' does not exist!')
 	
 	# Get deformer set
 	deformerSet = getDeformerSet(deformer)
@@ -80,7 +140,7 @@ def getDeformerSetFn(deformer):
 	# Return result
 	return deformerSetFn
 
-
+"""
 def getDeformerSetMembers(deformer,geometry=''):
 	'''
 	Return the deformer set members of the specified deformer.
@@ -110,12 +170,12 @@ def getDeformerSetMembers(deformer,geometry=''):
 		geo = geometry
 		if mc.objectType(geometry) == 'transform':
 			try: geometry = mc.listRelatives(geometry,s=True,ni=True,pa=True)[0]
-			except:	raise UserInputError('Object "'+geo+'" is not a valid geometry!')
+			except:	raise Exception('Object "'+geo+'" is not a valid geometry!')
 		geomPath = glTools.utils.base.getMDagPath(geometry)
 		
 		# Check geometry affected by deformer
 		if not (geometry in getAffectedGeometry(deformer,returnShapes=True).keys()):
-			raise UserInputError('Geometry "'+geometry+'" is not a affected by deformer "'+deformer+'"!')
+			raise Exception('Geometry "'+geometry+'" is not a affected by deformer "'+deformer+'"!')
 		
 		# Cycle through selection set members
 		for i in range(deformerSetSel.length()):
@@ -127,7 +187,7 @@ def getDeformerSetMembers(deformer,geometry=''):
 		
 		# Check setSelIndex found
 		if not setSelIndexFound:
-			raise UserInputError('No valid geometryIndex found for "'+geometry+'" in deformer set for "'+deformer+'"!')
+			raise Exception('No valid geometryIndex found for "'+geometry+'" in deformer set for "'+deformer+'"!')
 	else:
 		# Get deformer set members
 		deformerSetSel.getDagPath(0,deformerSetPath,deformerSetComp)
@@ -136,10 +196,11 @@ def getDeformerSetMembers(deformer,geometry=''):
 	return [deformerSetPath,deformerSetComp]
 
 """
+
 def getDeformerSetMembers(deformer,geometry=''):
 	'''
 	Return the deformer set members of the specified deformer.
-	Optionally, you can specify a shape name to query deformer membership on.
+	You can specify a shape name to query deformer membership for.
 	Otherwise, membership for the first affected geometry will be returned.
 	Results are returned as a list containing an MDagPath to the affected shape and an MObject for the affected components.
 	@param deformer: Deformer to query set membership for
@@ -152,7 +213,7 @@ def getDeformerSetMembers(deformer,geometry=''):
 	
 	# Get deformer set members
 	deformerSetSel = OpenMaya.MSelectionList()
-	deformerSetFn.getMembers(deformerSetSel,1)
+	deformerSetFn.getMembers(deformerSetSel,True)
 	deformerSetPath = OpenMaya.MDagPath()
 	deformerSetComp = OpenMaya.MObject()
 	
@@ -160,12 +221,42 @@ def getDeformerSetMembers(deformer,geometry=''):
 	if geometry: geomIndex = getGeomIndex(geometry,deformer)
 	else: geomIndex = 0
 	
+	# Get number of selection components
+	deformerSetLen = deformerSetSel.length()
+	if geomIndex >= deformerSetLen:
+		raise Exception('Geometry index out of range! (Deformer: "'+deformer+'", Geometry: "'+geometry+'", GeoIndex: '+str(geomIndex)+', MaxIndex: '+str(deformerSetLen)+')')
+	
 	# Get deformer set members
 	deformerSetSel.getDagPath(geomIndex,deformerSetPath,deformerSetComp)
 	
 	# Return result
 	return [deformerSetPath,deformerSetComp]
-"""
+#"""
+
+def getDeformerSetMemberStrList(deformer,geometry=''):
+	'''
+	Return the deformer set members of the specified deformer as a list of strings.
+	You can specify a shape name to query deformer membership for.
+	Otherwise, membership for the first affected geometry will be returned.
+	@param deformer: Deformer to query set membership for
+	@type deformer: str
+	@param geometry: Geometry to query deformer set membership for. Optional.
+	@type geometry: str
+	'''
+	# Get deformer function sets
+	deformerSetFn = getDeformerSetFn(deformer)
+	
+	# Get deformer set members
+	deformerSetSel = OpenMaya.MSelectionList()
+	deformerSetFn.getMembers(deformerSetSel,True)
+	
+	# Convert to list of strings
+	setMemberStr = []
+	deformerSetSel.getSelectionStrings(setMemberStr)
+	setMemberStr = mc.ls(setMemberStr,fl=True)
+	
+	# Return Result
+	return setMemberStr
 
 def getDeformerSetMemberIndices(deformer,geometry=''):
 	'''
@@ -179,18 +270,46 @@ def getDeformerSetMemberIndices(deformer,geometry=''):
 	geo = geometry
 	if mc.objectType(geometry) == 'transform':
 		try: geometry = mc.listRelatives(geometry,s=True,ni=True,pa=True)[0]
-		except:	raise UserInputError('Object "'+geo+'" is not a valid geometry!')
+		except:	raise Exception('Object "'+geo+'" is not a valid geometry!')
+	# Get geometry type
+	geometryType = mc.objectType(geometry)
 	
 	# Get deformer set members
 	deformerSetMem = getDeformerSetMembers(deformer,geometry)
 	
-	# Get set member indices
-	memberIndices = OpenMaya.MIntArray()
-	singleIndexCompFn = OpenMaya.MFnSingleIndexedComponent(deformerSetMem[1])
-	singleIndexCompFn.getElements(memberIndices)
+	# ==========================
+	# - Get Set Member Indices -
+	# ==========================
+	memberIdList = []
 	
+	# Single Index
+	if geometryType == 'mesh' or geometryType == 'nurbsCurve' or geometryType == 'particle':
+		memberIndices = OpenMaya.MIntArray()
+		singleIndexCompFn = OpenMaya.MFnSingleIndexedComponent(deformerSetMem[1])
+		singleIndexCompFn.getElements(memberIndices)
+		memberIdList = list(memberIndices)
+	
+	# Double Index
+	if geometryType == 'nurbsSurface':
+		memberIndicesU = OpenMaya.MIntArray()
+		memberIndicesV = OpenMaya.MIntArray()
+		doubleIndexCompFn = OpenMaya.MFnDoubleIndexedComponent(deformerSetMem[1])
+		doubleIndexCompFn.getElements(memberIndicesU,memberIndicesV)
+		for i in range(memberIndicesU.length()):
+			memberIdList.append([memberIndicesU[i],memberIndicesV[i]])
+	
+	# Triple Index
+	if geometryType == 'lattice':
+		memberIndicesS = OpenMaya.MIntArray()
+		memberIndicesT = OpenMaya.MIntArray()
+		memberIndicesU = OpenMaya.MIntArray()
+		tripleIndexCompFn = OpenMaya.MFnTripleIndexedComponent(deformerSetMem[1])
+		tripleIndexCompFn.getElements(memberIndicesS,memberIndicesT,memberIndicesU)
+		for i in range(memberIndicesS.length()):
+			memberIdList.append([memberIndicesS[i],memberIndicesT[i],memberIndicesU[i]])
+		
 	# Return result
-	return list(memberIndices)
+	return memberIdList
 
 def getAffectedGeometry(deformer,returnShapes=False,fullPathNames=False):
 	'''
@@ -204,30 +323,36 @@ def getAffectedGeometry(deformer,returnShapes=False,fullPathNames=False):
 	@param fullPathNames: Return full path names of affected objects
 	@type fullPathNames: bool
 	'''
-	# Verify input
+	# Verify Input
 	if not isDeformer(deformer):
-		raise UserInputError('Object "'+deformer+'" is not a valid deformer!')
+		raise Exception('Object "'+deformer+'" is not a valid deformer!')
 	
-	# Clear return array (dict)
+	# Initialize Return Array (dict)
 	affectedObjects = {}
 	
 	# Get MFnGeometryFilter
 	deformerObj = glTools.utils.base.getMObject(deformer)
 	geoFilterFn = OpenMayaAnim.MFnGeometryFilter(deformerObj)
-	# Get output geometry
+	
+	# Get Output Geometry
 	outputObjectArray = OpenMaya.MObjectArray()
 	geoFilterFn.getOutputGeometry(outputObjectArray)
-	# Iterate through affected geometry
+	
+	# Iterate Over Affected Geometry
 	for i in range(outputObjectArray.length()):
+		
+		# Get Output Connection at Index
 		outputIndex = geoFilterFn.indexForOutputShape(outputObjectArray[i])
 		outputNode = OpenMaya.MFnDagNode(outputObjectArray[i])
-		# Check return shapes
+		
+		# Check Return Shapes
 		if not returnShapes: outputNode = OpenMaya.MFnDagNode(outputNode.parent(0))
-		# Check full path
+		
+		# Check Full Path
 		if fullPathNames: affectedObjects[outputNode.fullPathName()] = outputIndex
 		else: affectedObjects[outputNode.partialPathName()] = outputIndex
 	
-	# Return result
+	# Return Result
 	return affectedObjects
 
 def getGeomIndex(geometry,deformer):
@@ -240,58 +365,23 @@ def getGeomIndex(geometry,deformer):
 	'''
 	# Verify input
 	if not isDeformer(deformer):
-		raise UserInputError('Object "'+deformer+'" is not a valid deformer!')
+		raise Exception('Object "'+deformer+'" is not a valid deformer!')
 	
 	# Check geometry
 	geo = geometry
 	if mc.objectType(geometry) == 'transform':
 		try: geometry = mc.listRelatives(geometry,s=True,ni=True,pa=True)[0]
-		except:	raise UserInputError('Object "'+geo+'" is not a valid geometry!')
+		except:	raise Exception('Object "'+geo+'" is not a valid geometry!')
 	geomObj = glTools.utils.base.getMObject(geometry)
 	
 	# Get geometry index
 	deformerObj = glTools.utils.base.getMObject(deformer)
 	deformerFn = OpenMayaAnim.MFnGeometryFilter(deformerObj)
 	try: geomIndex = deformerFn.indexForOutputShape(geomObj)
-	except: raise UserInputError('Object "'+geometry+'" is not affected by deformer "'+deformer+'"!')
+	except: raise Exception('Object "'+geometry+'" is not affected by deformer "'+deformer+'"!')
 	
 	# Retrun result
 	return geomIndex
-
-def getDeformerList(geo='',regexFilter='',type='geometryFilter'):
-	'''
-	Return a list of deformer that match the input criteria.
-	You can list deformers connected to a geo specified geometry, by type and filter the result with a regex.
-	@param geo: Geometry name as string. Optional arg that will list deformers connected to geo.
-	@type geo: str
-	@param regexFilter: Regular Expression as string. Optional arg that will filter results
-	@type regexFilter: str
-	@param type: Deformer Type as string. Optional arg, only return deformers of specified type.
-	@type type: str
-	'''
-	deformers = []
-	# Check Geo
-	if geo:
-		inputShapes = []
-		# Get shapes
-		shapes = mc.listRelatives(geo, shapes=True, ni=True)
-		# Get input shapes
-		for shape in shapes: inputShapes.append( findInputShape(shape) )
-		# Get deformers by listing all future on input shapes
-		deformers = mc.ls(mc.listHistory(inputShapes, future=True, allFuture=True), type=type)
-	else:
-		deformers = mc.ls(type=type)
-	
-	# Remove duplicate entries
-	deformers = list(set(deformers))
-	
-	# Filter result if regexFilter
-	if regexFilter:
-		reFilter = re.compile(regexFilter)
-		return filter(reFilter.search, deformers)	
-		
-	# Return result
-	return deformers
 
 def findInputShape(shape):
 	'''
@@ -345,7 +435,7 @@ def renameDeformerSet(deformer,deformerSetName=''):
 	'''
 	# Verify input
 	if not isDeformer(deformer):
-		raise UserInputError('Object "'+deformer+'" is not a valid deformer!')
+		raise Exception('Object "'+deformer+'" is not a valid deformer!')
 	
 	# Check deformer set name
 	if not deformerSetName: deformerSetName = deformer+'Set'
@@ -357,7 +447,7 @@ def renameDeformerSet(deformer,deformerSetName=''):
 	# Retrun result
 	return deformerSetName
 
-def getWeights(deformer,geometry=''):
+def getWeights(deformer,geometry=None):
 	'''
 	Get the weights for the specified deformer. Weights returned as a python list object
 	@param deformer: Deformer to get weights for
@@ -365,7 +455,15 @@ def getWeights(deformer,geometry=''):
 	@param geometry: Target geometry to get weights from
 	@type geometry: str
 	'''
-	# Get geoShape
+	# Check Deformer
+	if not isDeformer(deformer):
+		raise Exception('Object "'+deformer+'" is not a valid deformer!')
+	
+	# Check Geometry
+	if not geometry:
+		geometry = getAffectedGeometry(deformer).keys()[0]
+	
+	# Get Geometry Shape
 	geoShape = geometry
 	if geometry and mc.objectType(geoShape) == 'transform':
 		geoShape = mc.listRelatives(geometry,s=True,ni=True)[0]
@@ -409,17 +507,25 @@ def getWeights(deformer,geometry='',components=[]):
 	# Return result
 	return list(weightList)
 """
-def setWeights(deformer,weights,geometry=''):
+def setWeights(deformer,weights,geometry=None):
 	'''
 	Set the weights for the specified deformer using the input value list
 	@param deformer: Deformer to set weights for
 	@type deformer: str
 	@param weights: Input weight value list
 	@type weights: list
-	@param geometry: Target geometry to apply weights to
+	@param geometry: Target geometry to apply weights to. If None, use first affected geometry.
 	@type geometry: str
 	'''
-	# Get geoShape
+	# Check Deformer
+	if not isDeformer(deformer):
+		raise Exception('Object "'+deformer+'" is not a valid deformer!')
+	
+	# Check Geometry
+	if not geometry:
+		geometry = getAffectedGeometry(deformer).keys()[0]
+		
+	# Get Geometry Shape
 	geoShape = geometry
 	geoObj = glTools.utils.base.getMObject(geometry)
 	if geometry and geoObj.hasFn(OpenMaya.MFn.kTransform):
@@ -448,9 +554,9 @@ def bindPreMatrix(deformer,bindPreMatrix='',parent=True):
 	'''
 	# Check deformer
 	if not isDeformer(deformer):
-		raise UserInputError('Object "'+deformer+'" is not a valid deformer!')
+		raise Exception('Object "'+deformer+'" is not a valid deformer!')
 	if not mc.objExists(deformer+'.bindPreMatrix'):
-		raise UserInputError('Deformer "'+deformer+'" does not accept bindPreMatrix connections!')
+		raise Exception('Deformer "'+deformer+'" does not accept bindPreMatrix connections!')
 	
 	# Get deformer handle
 	deformerHandle = mc.listConnections(deformer+'.matrix',s=True,d=False)
@@ -545,25 +651,52 @@ def pruneMembershipByWeights(deformer,geoList=[],threshold=0.001):
 	allPruneList = []
 	for geo in geoList:
 		
-		# Get component type
+		# Get Component Type
 		geoType = glTools.utils.geometry.componentType(geo)
 	
-		# Get deformer member indices
+		# Get Deformer Member Indices
 		memberIndexList = getDeformerSetMemberIndices(deformer,geo)
 		
-		# Get weights
+		# Get Weights
 		weightList = getWeights(deformer,geo)
 		
-		# Get prune list
+		# Get Prune List
 		pruneList = [memberIndexList[i] for i in range(len(memberIndexList)) if weightList[i] <= threshold]
-		pruneList = [geo+'.'+geoType+'['+str(i)+']' for i in pruneList]
+		for i in range(len(pruneList)):
+			if type(pruneList[i]) == str or type(pruneList[i]) == unicode or type(pruneList[i]) == int:
+				pruneList[i] = '['+str(pruneList[i])+']'
+			elif type(pruneList[i]) == list:
+				pruneList[i] = [str(p) for p in pruneList[i]]
+				pruneList[i] = '['+']['.join(pruneList[i])+']'
+			pruneList[i] = geo+'.'+geoType+str(pruneList[i])
 		allPruneList.extend(pruneList)
 		
 		# Prune deformer set membership
-		mc.sets(pruneList,rm=deformerSet)
+		if pruneList: mc.sets(pruneList,rm=deformerSet)
 	
 	# Return prune list
 	return allPruneList
+
+def clean(deformer,threshold=0.001):
+	'''
+	Clean specified deformer.
+	Prune weights under the given tolerance and prune membership.
+	@param deformer: The deformer to clean. 
+	@type deformer: str
+	@param threshold: Weight value tolerance for prune operations.
+	@type threshold: float
+	'''
+	# Print Message
+	print('Cleaning deformer: '+deformer+'!')
+	
+	# Check Deformer
+	if not isDeformer(deformer):
+		raise Exception('Object "'+deformer+'" is not a valid deformer!')
+	
+	# Prune Weights
+	glTools.utils.deformer.pruneWeights(deformer,threshold=threshold)
+	# Prune Membership
+	glTools.utils.deformer.pruneMembershipByWeights(deformer,threshold=threshold)
 
 def checkMultipleOutputs(deformer,printResult=True):
 	'''

@@ -1,6 +1,8 @@
 import maya.cmds as mc
 import maya.mel as mm
 
+import glTools.utils.transform
+
 class ChannelState(object):
 	
 	def __init__(self):
@@ -10,7 +12,139 @@ class ChannelState(object):
 		self.channel = ['tx','ty','tz','rx','ry','rz','sx','sy','sz','v']
 		self.window = 'channelStateUI'
 		self.labelArray = ['No Change','Keyable','NonKeyable','Locked']
-		self.transformType = ['transform','joint','ikEffector','ikHandle','aimConstraint','orientConstraint','parentConstraint','pointConstraint','poleVectorConstraint','scaleConstraint']
+	
+	def add(self,objectList):
+		'''
+		Adds the channel state attr to all specified objects
+		@param objectList: List of objects to add flags to
+		@type objectList: list
+		'''
+		# Add Channel State Attrs
+		for obj in objectList:
+			
+			# Check obj
+			if not mc.objExists(obj):
+				raise Exception('Object "'+obj+'" does not exist!')
+			if not glTools.utils.transform.isTransform(obj):
+				raise Exception('Object "'+obj+'" is not a valid transform!')
+			if mc.objExists(obj+'.channelState'):
+				print ('Object "'+obj+'" already has a "channelState" attribute! Skipping...')
+			
+			# Add channelState attr
+			#mc.addAttr(obj,ln='channelState',at='enum',en=':Keyable:NonKeyable:Locked:',m=1,dv=-1)
+			mc.addAttr(obj,ln='channelState',at='enum',en=':Keyable:NonKeyable:Locked:',m=1)
+			
+			# Set channelState flag values
+			for i in range(len(self.channel)):
+				if mc.getAttr(obj+'.'+self.channel[i],l=1):
+					# Set Locked State
+					mc.setAttr(obj+'.channelState['+str(i)+']',2)
+				elif not mc.getAttr(obj+'.'+self.channel[i],k=1):
+					# Set NonKeyable State
+					mc.setAttr(obj+'.channelState['+str(i)+']',1)
+				else:
+					# Set Keyable State
+					mc.setAttr(obj+'.channelState['+str(i)+']',0)
+				# Alias Attribute
+				mc.aliasAttr(self.channel[i]+'_state',obj+'.channelState['+str(i)+']')
+	
+	def setFlags(self,flags=[0,0,0,0,0,0,0,0,0,1],objectList=[]):
+		'''
+		Sets the channelState attributes on all specified objects
+		@param flags: Channel state values for object channels
+		@type flags: list
+		@param objectList: List of objects to set flags for
+		@type objectList: list
+		'''
+		# For each object
+		for obj in objectList:
+			
+			# Check Obj
+			if not obj: continue
+			if not mc.objExists(obj):
+				raise Exception('Object "'+obj+'" does not exist!')
+			if not glTools.utils.transform.isTransform(obj):
+				raise Exception('Object "'+obj+'" is not a valid transform!')
+			# Check ChannelState Attr
+			if not mc.objExists(obj+'.channelState'):
+				self.add([obj])
+			# Set Flags
+			for i in range(len(self.channel)):
+				if flags[i] != -1:
+					mc.setAttr(obj+'.channelState['+str(i)+']',flags[i])
+	
+	def get(self,obj):
+		'''
+		Get the channel state values from an object and return them in an list.
+		An empty list will be returned if they are not tagged
+		@param obj: Object to get channels states from
+		@type obj: str
+		'''
+		# Get channel state values from object attributes
+		channelState = []
+		if mc.objExists(obj+'.channelState'):
+			for i in range(len(self.channel)):
+				channelState.append(mc.getAttr(obj+'.channelState['+str(i)+']'))
+		return channelState
+	
+	def set(self,state,objectList=[]):
+		'''
+		Set channel states based on channelState multi attribute
+		@param state: The state to set object channels to. 0 = OFF, 1 = ON
+		@type state: int
+		@param objList: List of objects to set channels states for
+		@type objList: list
+		'''
+		# Check objectList
+		if type(objectList) == str: objectList = [objectList]
+		if not objectList: objectList = mc.ls('*.channelState',o=True)
+		
+		# For each object in list
+		for obj in objectList:
+			
+			# Check Object
+			if not obj: continue
+			
+			# Get/Check Channel State Values
+			channelState = self.get(obj)
+			if not channelState: continue
+			if len(channelState) != len(self.channel):
+				raise Exception('Attribute "'+obj+'.channelState" is not the expected length ('+str(len(self.channel))+')!')
+			
+			if state:
+				for i in range(len(self.channel)):
+					if channelState[i] == 0: # KEYABLE
+						mc.setAttr(obj+'.'+self.channel[i],l=False,k=True)
+					elif channelState[i] == 1: # NON-KEYABLE
+						mc.setAttr(obj+'.'+self.channel[i],l=False,k=False,cb=False)
+					elif channelState[i] == 2: # LOCKED
+						mc.setAttr(obj+'.'+self.channel[i],l=True,k=False,cb=False)
+					else: # INVALID OPTION
+						raise Exception('Invalid channel state value ('+str(channelState[i])+')!')
+				
+				# Joint Radius
+				if mc.objExists(obj+'.radius'): mc.setAttr(obj+'.radius',l=False,k=False)
+				
+			else:
+				# Unlock Channel State
+				for attr in self.channel:
+					mc.setAttr(obj+'.'+attr,l=False,k=True,cb=True)
+				
+				# Joint Radius
+				if mc.objectType == 'joint' and mc.objExists(obj+'.radius'):
+					mc.setAttr(obj+'.radius',l=False,k=True,cb=True)
+	
+	def toggleSelected(self,state):
+		'''
+		Set channel states on all selected objects
+		@param state: The state to set object channels to
+		@type state: int
+		'''
+		self.set(state,mc.ls(sl=1))
+	
+	# ==============
+	# - UI Methods -
+	# ==============
 	
 	def ui(self):
 		'''
@@ -19,18 +153,7 @@ class ChannelState(object):
 		'''
 		# Create Window
 		if mc.window(self.window,q=1,ex=1): mc.deleteUI(self.window)
-   		mc.window(self.window,t='Channel State Editor',w=630,h=445,rtf=1,mnb=1,mb=1)
-		# Menu
-		mc.menu(label='Set Exclusions',tearOff=1)
-		mc.menuItem('mcbCamera',label='Cameras',cb=1)
-		mc.menuItem('mcbConstraint',label='Constraints',cb=1)
-		mc.menuItem('mcbCurve',label='Curves',cb=0)
-		mc.menuItem('mcbGeometry',label='Geometry',cb=0)
-		mc.menuItem('mcbIK',label='IK Handles',cb=1)
-		mc.menuItem('mcbJoint',label='Joints',cb=0)
-		mc.menuItem('mcbLight',label='Lights',cb=1)
-		mc.menuItem('mcbLocator',label='Locators',cb=0)
-		mc.setParent('..')
+		mc.window(self.window,t='Channel State Editor',w=630,h=445,rtf=1,mnb=1,mb=1)
 		
 		mc.columnLayout(adj=1,w=500)
 		
@@ -67,8 +190,8 @@ class ChannelState(object):
 		mc.radioButtonGrp('rbgObjType',numberOfRadioButtons=3,labelArray3=['Selection','All','Type'],sl=1,on3='mc.textField("tfType",e=1,visible=1)',of3='mc.textField("tfType",e=1,visible=0)')
 		mc.textField('tfType',visible=0)
 		mc.setParent('..')
-		
 		mc.separator(style='in',h=30)
+		
 		# Buttons
 		mc.rowColumnLayout(nc=4,cw=[(1,60),(2,175),(3,175),(4,175)])
 		mc.text(l='')
@@ -77,6 +200,7 @@ class ChannelState(object):
 		mc.button(l='Set State OFF',ann='Same as making all channels keyable and visible.',c='glTools.utils.channelState.ChannelState().uiState(0)')
 		mc.setParent('..')
 		mc.setParent('..')
+		
 		# Show Window
 		mc.showWindow(self.window)
 		mc.window(self.window,e=1,w=630,h=445)
@@ -114,7 +238,7 @@ class ChannelState(object):
 						cancelButton='No',
 						dismissString='NO')
 			if doit == 'No': return
-			objectList = self.getAll()
+			objectList = mc.ls('*.channelState',o=True)
 		elif objType == 3:
 			selType = mc.textField('tfType',q=1,text=1)
 			objectList = mc.ls(type=selType)
@@ -130,151 +254,8 @@ class ChannelState(object):
 		# Create the list of objects to set flags for
 		objectList = []
 		if objType == 1: objectList = mc.ls(sl=1)
-		elif objType == 2: objectList = self.getAll()
+		elif objType == 2: objectList = mc.ls('*.channelState',o=True)
 		elif objType == 3:
 			selType = mc.textField('tfType',q=1,text=1)
 			objectList = mc.ls(type=selType)
 		self.set(state,objectList)
-	
-	def getAll(self):
-		'''
-		Builds a list of all requested scene transforms based on user specified exclusions.
-		This function is called from ChannelState.ui() and uses the interface menu as the source
-		of the exclusion list.
-		'''
-		# Get all scene transforms
-		all = mc.ls(type='transform')
-		
-		# Remove items based on exclusions
-		#----------------------------------
-		# camera
-		if mc.menuItem('mcbCamera',q=1,cb=1):
-			for cam in mc.ls(type='camera'):
-				par = mc.listRelatives(cam,p=1)[0]
-				if all.count(par): all.remove(par)
-		# light
-		if mc.menuItem('mcbLight',q=1,cb=1):
-			for light in mc.ls(type='light'):
-				par = mc.listRelatives(light,p=1)[0]
-				if all.count(par): all.remove(par)
-		# joint
-		if mc.menuItem('mcbJoint',q=1,cb=1):
-			for joint in mc.ls(type='joint'):
-				if all.count(joint): all.remove(joint)
-		# geo
-		if mc.menuItem('mcbGeometry',q=1,cb=1):
-			for geo in mc.ls(type=['mesh','nurbsSurface']):
-				par = mc.listRelatives(geo,p=1)[0]
-				if all.count(par): all.remove(par)
-		# curve
-		if mc.menuItem('mcbCurve',q=1,cb=1):
-			for curve in mc.ls(type='nurbsCurve'):
-				par = mc.listRelatives(curve,p=1)[0]
-				if all.count(par): all.remove(par)
-		# constraint
-		if mc.menuItem('mcbConstraint',q=1,cb=1):
-			for constraint in mc.ls(type='constraint'):
-				if all.count(constraint): all.remove(constraint)
-		# ik handle
-		if mc.menuItem('mcbIK',q=1,cb=1):
-			for ik in mc.ls(type=['ikHandle','ikEffector']):
-				if all.count(ik): all.remove(ik)
-		# locator
-		if mc.menuItem('mcbLocator',q=1,cb=1):
-			for locator in mc.ls(type='locator'):
-				par = mc.listRelatives(locator,p=1)[0]
-				if all.count(par): all.remove(par)
-		
-		# Return transforms, minus exclusions
-		return all
-	
-	def add(self,objectList):
-		'''
-		Adds the channel state attr to all specified objects
-		@param objectList: List of objects to add flags to
-		@type objectList: list
-		'''
-		for obj in objectList:
-			# Check obj
-			if not mc.objExists(obj): continue
-			if mc.objExists(obj+'.channelState'): continue
-			if not self.transformType.count(mc.objectType(obj)): continue
-			
-			# Add channelState attr
-			mc.addAttr(obj,ln='channelState',m=1,dv=0)
-			
-			# Set channelState flag values
-			channelState = []
-			for i in range(len(self.channel)):
-				if mc.getAttr(obj+'.'+self.channel[i],l=1): mc.setAttr(obj+'.channelState['+str(i)+']',2)
-				elif not mc.getAttr(obj+'.'+self.channel[i],k=1): mc.setAttr(obj+'.channelState['+str(i)+']',1)
-				else: mc.setAttr(obj+'.channelState['+str(i)+']',0)
-	
-	def setFlags(self,flags=[0,0,0,0,0,0,0,0,0,1],objectList=[]):
-		'''
-		Sets the channelState attributes on all specified objects
-		@param flags: Channel state values for object channels
-		@type flags: list
-		@param objectList: List of objects to set flags for
-		@type objectList: list
-		'''
-		self.add(objectList)
-		for obj in objectList:
-			if not mc.objExists(obj): continue
-			if not self.transformType.count(mc.objectType(obj)): continue
-			for i in range(len(self.channel)):
-				if flags[i] != -1: mc.setAttr(obj+'.channelState['+str(i)+']',flags[i])
-	
-	def get(self,obj):
-		'''
-		Get the channel state values from an object and return them in an list.
-		An empty list will be returned if they are not tagged
-		@param obj: Object to get channels states from
-		@type obj: str
-		'''
-		# Get channel state values from object attributes
-		channelState = []
-		if mc.objExists(obj+'.channelState'):
-			for i in range(10):
-				channelState.append(mc.getAttr(obj+'.channelState['+str(i)+']'))
-		return channelState
-	
-	def toggleSelected(self,state):
-		'''
-		Set channel states on all selected objects
-		@param state: The state to set object channels to
-		@type state: int
-		'''
-		self.set(state,mc.ls(sl=1))
-	
-	def set(self,state,objectList=[]):
-		'''
-		Set channel states based on channelState multi attribute
-		@param state: The state to set object channels to
-		@type state: int
-		@param objList: List of objects to set channels states for
-		@type objList: list
-		'''
-		# Check objectList
-		if type(objectList) == str: objectList = [objectList]
-		if not objectList: objectList = mc.ls('*.channelState',o=True)
-		
-		# For each object in list
-		for obj in objectList:
-			
-			# Get channel state values
-			channelState = self.get(obj)
-			if not len(channelState): continue
-			if len(channelState) != 10: raise UserInputError('Attribute "'+obj+'.channelState" is not the expected length (10)!')
-			
-			if state:
-				for i in range(len(self.channel)):
-					if not channelState[i]: mc.setAttr(obj+'.'+self.channel[i],l=0,k=1)
-					elif channelState[i] == 1: mc.setAttr(obj+'.'+self.channel[i],l=0,k=0)
-					elif channelState[i] == 2: mc.setAttr(obj+'.'+self.channel[i],l=1,k=0)
-				# radius
-				if mc.objExists(obj+'.radius'): mc.setAttr(obj+'.radius',l=0,k=0)
-			else:
-				for attr in self.channel:
-					mc.setAttr(obj+'.'+attr,l=0,k=1)
-				if mc.objExists(obj+'.radius'): mc.setAttr(obj+'.radius',l=0,k=1)

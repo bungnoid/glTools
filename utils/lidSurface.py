@@ -3,7 +3,7 @@ import maya.cmds as mc
 import glTools.utils.curve
 import glTools.utils.surface
 
-import glTools.common.namingConvention
+import glTools.tools.namingConvention
 
 class UserInputError(Exception): pass
 
@@ -39,7 +39,7 @@ def lidSurface_create(curveList,spans=4,attributeObject='',collisionObject='',si
 	splitAttr = 'lidCentre'
 	
 	# NameUtil
-	nameUtil = glTools.common.namingConvention.NamingConvention()
+	nameUtil = glTools.tools.namingConvention.NamingConvention()
 	# Check prefix
 	if not prefix: prefix = nameUtil.stripSuffix(crvList[0],'_')
 	# Check side
@@ -53,7 +53,7 @@ def lidSurface_create(curveList,spans=4,attributeObject='',collisionObject='',si
 			raise UserInputError('Object "'+crv+'" is not a valid nurbs curve!')
 	
 	# Create lidSurface node
-	lidSurface = nameUtil.appendName(prefix,'lidSurface')
+	lidSurface = prefix+'_lidSurface'
 	lidSurface = mc.createNode('lidSurface',n=lidSurface)
 	
 	# Set spans
@@ -84,9 +84,9 @@ def lidSurface_create(curveList,spans=4,attributeObject='',collisionObject='',si
 		mc.connectAttr(collisionObject+'.worldSpace',lidSurface+'.collisionGeometry',f=True)
 	
 	# Create lid surfaces
-	topLid_srf = nameUtil.appendName(prefix+'_tp01',nameUtil.node['surface'])
+	topLid_srf = prefix+'_tp01_surface'
 	topLid_srf = mc.nurbsPlane(ch=0,n=topLid_srf)[0]
-	lowLid_srf = nameUtil.appendName(prefix+'_lw01',nameUtil.node['surface'])
+	lowLid_srf = prefix+'_lw01_surface'
 	lowLid_srf = mc.nurbsPlane(ch=0,n=lowLid_srf)[0]
 	
 	# Attach lid surfaces
@@ -105,10 +105,10 @@ def setup_threeCtrl(lf_lidrails,rt_lidrails):
 	@type rt_lidrails: str
 	'''
 	# Declare control variables
-	lf_up = ['L_upperLid1_ctrl','L_upperLid2_ctrl','L_upperLid3_ctrl']
-	lf_dn = ['L_lowerLid1_ctrl','L_lowerLid2_ctrl','L_lowerLid3_ctrl']
-	rt_up = ['R_upperLid1_ctrl','R_upperLid2_ctrl','R_upperLid3_ctrl']
-	rt_dn = ['R_lowerLid1_ctrl','R_lowerLid2_ctrl','R_lowerLid3_ctrl']
+	lf_up = ['lf_lid01_tp01_ccc','lf_lid01_tp02_ccc','lf_lid01_tp03_ccc']
+	lf_dn = ['lf_lid01_dn01_ccc','lf_lid01_dn02_ccc','lf_lid01_dn03_ccc']
+	rt_up = ['rt_lid01_tp01_ccc','rt_lid01_tp02_ccc','rt_lid01_tp03_ccc']
+	rt_dn = ['rt_lid01_dn01_ccc','rt_lid01_dn02_ccc','rt_lid01_dn03_ccc']
 	
 	# Connect lidRails ramps to lid profile controls
 	

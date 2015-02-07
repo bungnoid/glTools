@@ -1,38 +1,24 @@
 import maya.cmds as mc
 import maya.OpenMaya as OpenMaya
 
+import glTools.utils.base
+
 def connectionListToAttr(toNode,toAttr):
 	'''
 	Return a dictionary containing incoming connection information for a specific attribute
-	
 	@param toNode: Node to query connection information from
 	@type toAttr: Attribute to query connection information from
 	'''
 	# Verify
 	if not mc.objExists(toNode+'.'+toAttr):
 		raise Exception('Attribute ' + toNode+'.'+toAttr + ' does not exist!')
-		return
-	
-	# Initialize empty connection dictionary
-	connectionList = {}
-	
-	# Get user selection
-	userSel = mc.ls(sl=1)
-	
-	# Initialize MSelectionList
-	selList = OpenMaya.MSelectionList()
-	
-	# Get toNode
-	selList.clear()
-	OpenMaya.MGlobal.clearSelectionList()
-	OpenMaya.MGlobal.getSelectionListByName(toNode,selList)
-	toNodeObj = OpenMaya.MObject()
-	selList.getDependNode(0,toNodeObj)
 	
 	# Get MPlug to toAttr
+	toNodeObj = glTools.utils.base.getMObject(toNode)
 	toAttrPlug = OpenMaya.MFnDependencyNode(toNodeObj).findPlug(toAttr)
 	
 	# Get MPlugArray of connected plugs
+	connectionList = {}
 	connectedPlugArray = OpenMaya.MPlugArray()
 	if toAttrPlug.isArray():
 		numElems = toAttrPlug.numElements()
@@ -55,42 +41,25 @@ def connectionListToAttr(toNode,toAttr):
 				if (len(elem) > 1) and (elem != plugElem[-1]): attr += '.'
 			connectionList[node] = (attr,-(i+1))
 	
-	# Restore original selection
-	mc.select(cl=1)
-	if type(userSel) == list:
-		if len(userSel): mc.select(userSel)
-	
+	# Return Result
 	return connectionList
 	
 def connectionListFromAttr(fromNode,fromAttr):
 	'''
 	Return a dictionary containing outgoing connection information for a specific attribute
-	
 	@param fromNode: Node to query connection information from
 	@type fromAttr: Attribute to query connection information from
 	'''
 	# Verify
 	if not mc.objExists(fromNode+'.'+fromAttr):
 		raise Exception('Attribute ' + fromNode+'.'+fromAttr + ' does not exist!')
-		return
-	
-	# Get user selection
-	userSel = mc.ls(sl=1)
-	
-	# Initialize MSelectionList
-	selList = OpenMaya.MSelectionList()
-	
-	# Get fromNode
-	selList.clear()
-	OpenMaya.MGlobal.clearSelectionList()
-	OpenMaya.MGlobal.getSelectionListByName(fromNode,selList)
-	fromNodeObj = OpenMaya.MObject()
-	selList.getDependNode(0,fromNodeObj)
 	
 	# Get MPlug to fromAttr
+	fromNodeObj = glTools.utils.base.getMObject(fromNode)
 	fromAttrPlug = OpenMaya.MFnDependencyNode(fromNodeObj).findPlug(fromAttr)
 	
 	# Get MPlugArray of connected plugs
+	connectionList = {}
 	connectedPlugArray = OpenMaya.MPlugArray()
 	if fromAttrPlug.isArray():
 		numElems = fromAttrPlug.numElements()
@@ -113,12 +82,8 @@ def connectionListFromAttr(fromNode,fromAttr):
 				if (len(elem) > 1) and (elem != plugElem[-1]): attr += '.'
 			connectionList[node] = (attr,-(i+1))
 	
-	# Restore original selection
-	mc.select(cl=1)
-	if type(userSel) == list:
-		if len(userSel): mc.select(userSel)
-	
-	return self.connectionList
+	# Return Result
+	return connectionList
 
 def combineSingleAttrConnections(targetAttr,inputAttr1='',inputAttr2='',inputAttr1Value=None,inputAttr2Value=None,combineMode='add',enableAttributeOverride=False,blendAttr=''):
 	'''
@@ -208,6 +173,8 @@ def combineSingleAttrConnections(targetAttr,inputAttr1='',inputAttr2='',inputAtt
 
 def replace(original,new,inputs=True,outputs=True):
 	'''
+	Replace all incoming and/or outgoing attribute connections from one node to another.
+	Basically replaces a node in the graph with another.
 	@param original: The node or plug to be replaced
 	@type original: str
 	@param new: The node or plug to replace the original node or plug
@@ -234,14 +201,18 @@ def replace(original,new,inputs=True,outputs=True):
 			inputList = mc.listConnections(original,s=True,d=False,p=True)
 			if inputList:
 				for i in range(len(inputList)):
-					mc.connectAttr(inputList[i],new,f=True)
+					try: mc.connectAttr(inputList[i],new,f=True)
+					except: raise Exception('FAILED: '+inputList[i]+' -> '+new+'!')
+					print ('Connected: '+inputList[i]+' -> '+new)
 		else:
 			inputList = mc.listConnections(original,s=True,d=False,p=True,c=True)
 			if inputList:
 				for i in range(len(inputList)/2):
 					newDest = inputList[i*2].replace(original,new)
 					if not mc.objExists(newDest): raise Exception('Object attribute "'+newDest+'" does not exist!')
-					mc.connectAttr(inputList[(i*2)+1],newDest,f=True)
+					try: mc.connectAttr(inputList[(i*2)+1],newDest,f=True)
+					except: raise Exception('FAILED: '+inputList[(i*2)+1]+' -> '+newDest+'!')
+					else: print ('Connected: '+inputList[(i*2)+1]+' -> '+newDest)
 	
 	# OUTPUTS
 	if outputs:
@@ -249,11 +220,103 @@ def replace(original,new,inputs=True,outputs=True):
 			outputList = mc.listConnections(original,d=True,s=False,p=True)
 			if outputList:
 				for i in range(len(outputList)):
-					mc.connectAttr(new,outputList[i],f=True)
+					try: mc.connectAttr(new,outputList[i],f=True)
+					except: raise Exception('FAILED: '+new+' -> '+inputList[i]+'!')
+					else: print('Connected: '+new+' -> '+inputList[i])
 		else:
 			outputList = mc.listConnections(original,d=True,s=False,p=True,c=True)
 			if outputList:
 				for i in range(len(outputList)/2):
 					newOutput = outputList[i*2].replace(original,new)
 					if not mc.objExists(newOutput): raise Exception('Object attribute "'+newOutput+'" does not exist!')
-					mc.connectAttr(newOutput,outputList[(i*2)+1],f=True)
+					try: mc.connectAttr(newOutput,outputList[(i*2)+1],f=True)
+					except: raise Exception('FAILED: '+newOutput+' -> '+outputList[(i*2)+1]+'!')
+					else: print ('Connected: '+newOutput+' -> '+outputList[(i*2)+1])
+
+def swap(node1,node2):
+	'''
+	'''
+	# ========================
+	# - Get Node Connections -
+	# ========================
+	
+	node1conn_src = mc.listConnections(node1,s=True,d=False,p=True,c=True,sh=True) or []
+	node1conn_dst = mc.listConnections(node1,s=False,d=True,p=True,c=True,sh=True) or []
+	node2conn_src = mc.listConnections(node2,s=True,d=False,p=True,c=True,sh=True) or []
+	node2conn_dst = mc.listConnections(node2,s=False,d=True,p=True,c=True,sh=True) or []
+	
+	# ====================
+	# - Disconnect Attrs -
+	# ====================
+	
+	# Disconnect Node 1 Source
+	for i in range(0,len(node1conn_src),2):
+		try: mc.disconnectAttr(node1conn_src[i+1],node1conn_src[i])
+		except: print ('FAILED: '+node1conn_src[i+1]+' X '+node1conn_src[i]+'!')
+		else: print ('Disconnected: '+node1conn_src[i+1]+' X '+node1conn_src[i]+'!')
+	
+	# Disconnect Node 1 Destination
+	for i in range(0,len(node1conn_dst),2):
+		try: mc.disconnectAttr(node1conn_dst[i],node1conn_dst[i+1])
+		except: print ('FAILED: '+node1conn_dst[i]+' X '+node1conn_dst[i+1]+'!')
+		else: print ('Disconnected: '+node1conn_dst[i]+' X '+node1conn_dst[i+1]+'!')
+		
+	# -
+	
+	# Disconnect Node 2 Source
+	for i in range(0,len(node2conn_src),2):
+		try: mc.disconnectAttr(node2conn_src[i+1],node2conn_src[i])
+		except: print ('FAILED: '+node2conn_src[i+1]+' X '+node2conn_src[i]+'!')
+		else: print ('Disconnected: '+node2conn_src[i+1]+' X '+node2conn_src[i]+'!')
+	
+	# Disconnect Node 2 Destination
+	for i in range(0,len(node2conn_dst),2):
+		try: mc.disconnectAttr(node2conn_dst[i],node2conn_dst[i+1])
+		except: print ('FAILED: '+node2conn_dst[i]+' X '+node2conn_dst[i+1]+'!')
+		else: print ('Disconnected: '+node2conn_dst[i]+' X '+node2conn_dst[i+1]+'!')
+	
+	# =================
+	# - Connect Attrs -
+	# =================
+	
+	# - Connect Node 1 ---
+	
+	# Connect Node 1 Source
+	for i in range(0,len(node1conn_src),2):
+		dst = node1conn_src[i].replace(node1,node2)
+		src = node1conn_src[i+1]
+		try: mc.connectAttr(src,dst,f=True)
+		except: print ('FAILED: '+src+' -> '+dst+'!')
+		else: print ('Connected: '+src+' -> '+dst+'...')
+	
+	# Connect Node 1 Destination
+	for i in range(0,len(node1conn_dst),2):
+		src = node1conn_dst[i].replace(node1,node2)
+		dst = node1conn_dst[i+1]
+		try: mc.connectAttr(src,dst,f=True)
+		except: print ('FAILED: '+src+' -> '+dst+'!')
+		else: print ('Connected: '+src+' -> '+dst+'...')
+	
+	# - Connect Node 2 ---
+	
+	# Connect Node 2 Source
+	for i in range(0,len(node2conn_src),2):
+		dst = node2conn_src[i].replace(node2,node1)
+		src = node2conn_src[i+1]
+		try: mc.connectAttr(src,dst,f=True)
+		except: print ('FAILED: '+src+' -> '+dst+'!')
+		else: print ('Connected: '+src+' -> '+dst+'...')
+	
+	# Connect Node 2 Destination
+	for i in range(0,len(node2conn_dst),2):
+		src = node2conn_dst[i].replace(node2,node1)
+		dst = node2conn_dst[i+1]
+		try: mc.connectAttr(src,dst,f=True)
+		except: print ('FAILED: '+src+' -> '+dst+'!')
+		else: print ('Connected: '+src+' -> '+dst+'...')
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return

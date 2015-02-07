@@ -124,5 +124,8 @@ class SymmetryTable(object):
 		self.symTable = abSymTable
 		self.asymTable = aNonSymVerts
 		
-		# retuurn result
-		return abSymTable
+		# =================
+		# - Return Result -
+		# =================
+		
+		return self.symTable

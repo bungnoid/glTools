@@ -3,12 +3,8 @@ import maya.cmds as mc
 import glTools.ui.utils
 import glTools.utils.ik
 import glTools.tools.ikHandle
-import glTools.builder.stretchyIkChain
-import glTools.builder.stretchyIkLimb
-import glTools.builder.stretchyIkSpline_parametric
-import glTools.builder.stretchyIkSpline_arcLength
+import glTools.tools.stretchyIkChain
 
-class UserInputError(Exception): pass
 class UIError(Exception): pass
 
 # IK Handle --
@@ -53,11 +49,11 @@ def ikHandleUI():
 	
 	# UI callback commands
 	mc.optionMenuGrp(solverOMG,e=True,cc='mc.frameLayout("'+splineFrameL+'",e=True,en=not(mc.optionMenuGrp("'+solverOMG+'",q=True,sl=True)-1))')
-	mc.textFieldButtonGrp(sJointTFB,e=True,bc='glTools.ui.utils.loadTypeSel("'+sJointTFB+'","'+prefixTFG+'",selType="joint")')
+	mc.textFieldButtonGrp(sJointTFB,e=True,bc='glTools.ui.ik.ikHandleUI_autoComplete("'+sJointTFB+'","'+eJointTFB+'","'+prefixTFG+'")')
 	mc.textFieldButtonGrp(eJointTFB,e=True,bc='glTools.ui.utils.loadTypeSel("'+eJointTFB+'",selType="joint")')
 	mc.textFieldButtonGrp(curveTFB,e=True,bc='glTools.ui.utils.loadCurveSel("'+curveTFB+'")')
 	
-	# Form Layout - MAIM
+	# Form Layout - MAIN
 	mc.formLayout(FL,e=True,af=[(sJointTFB,'top',5),(sJointTFB,'left',5),(sJointTFB,'right',5)])
 	mc.formLayout(FL,e=True,ac=[(eJointTFB,'top',5,sJointTFB)])
 	mc.formLayout(FL,e=True,af=[(eJointTFB,'left',5),(eJointTFB,'right',5)])
@@ -79,6 +75,23 @@ def ikHandleUI():
 	
 	# Show Window
 	mc.showWindow(window)
+
+def ikHandleUI_autoComplete(sJointTFB,eJointTFB,prefixTFG):
+	'''
+	'''
+	# Load selection to UI field
+	glTools.ui.utils.loadTypeSel(sJointTFB,prefixTFG,selType="joint")
+	
+	# Get start joint and determine end joint
+	sJoint = mc.textFieldButtonGrp(sJointTFB,q=True,text=True)
+	sJointChain = mc.listRelatives(sJoint,ad=True)
+	if not sJointChain: return
+	eJointList = mc.ls(sJointChain,type='joint')
+	if not eJointList: return
+	eJoint = str(eJointList[0])
+	
+	# Set End joint field value
+	mc.textFieldButtonGrp(eJointTFB,e=True,text=eJoint)
 
 def ikHandleFromUI(close=False):
 	'''
@@ -189,7 +202,7 @@ def stretchyIkChainFromUI(close=False):
 	blendAttr = mc.textFieldGrp('stretchyIkChainBlendAttrTFB',q=True,text=True)
 	
 	# Execute command
-	glTools.builder.stretchyIkChain.StretchyIkChain().build(ikHandle=ik,scaleAttr=scaleAttr,scaleAxis=scaleAxis,blendControl=blendCtrl,blendAttr=blendAttr,shrink=shrink,prefix=pre)
+	glTools.tools.stretchyIkChain.build(ikHandle=ik,scaleAttr=scaleAttr,scaleAxis=scaleAxis,blendControl=blendCtrl,blendAttr=blendAttr,shrink=shrink,prefix=pre)
 	
 	# Cleanup
 	if close: mc.deleteUI(window)
@@ -270,7 +283,7 @@ def stretchyIkLimbFromUI(close=False):
 	scaleAttr = mc.textFieldButtonGrp('stretchyIkLimbScaleAttrTFB',q=True,text=True)
 	
 	# Execute command
-	glTools.builder.stretchyIkLimb.StretchyIkLimb().build(ikHandle=ik,control=ctrl,scaleAttr=scaleAttr,scaleAxis=scaleAxis,prefix=pre)
+	glTools.tools.stretchyIkLimb.StretchyIkLimb().build(ikHandle=ik,control=ctrl,scaleAttr=scaleAttr,scaleAxis=scaleAxis,prefix=pre)
 	
 	# Cleanup
 	if close: mc.deleteUI(window)
@@ -315,7 +328,7 @@ def stretchyIkSplineUI():
 	# Min/Max Percent
 	minPercentFSG = mc.floatSliderGrp('stretchyIkSplineMinPFSG',label='Min Percent',field=True,minValue=0.0,maxValue=1.0,fieldMinValue=0.0,fieldMaxValue=1.0,value=0.0)
 	maxPercentFSG = mc.floatSliderGrp('stretchyIkSplineMaxPFSG',label='Max Percent',field=True,minValue=0.0,maxValue=1.0,fieldMinValue=0.0,fieldMaxValue=1.0,value=1.0)
-	#closestPointCBG = mc.checkBoxGrp('stretchyIkSplineClosestPointCBG',l='Use Closest Point',ncb=1,v1=True)
+	closestPointCBG = mc.checkBoxGrp('stretchyIkSplineClosestPointCBG',l='Use Closest Point',ncb=1,v1=True)
 	
 	mc.setParent('..')
 	mc.setParent('..')
@@ -355,6 +368,8 @@ def stretchyIkSplineUI():
 	mc.formLayout(paramFormL,e=True,af=[(minPercentFSG,'top',5),(minPercentFSG,'left',5),(minPercentFSG,'right',5)])
 	mc.formLayout(paramFormL,e=True,ac=[(maxPercentFSG,'top',5,minPercentFSG)])
 	mc.formLayout(paramFormL,e=True,af=[(maxPercentFSG,'left',5),(maxPercentFSG,'right',5)])
+	mc.formLayout(paramFormL,e=True,ac=[(closestPointCBG,'top',5,maxPercentFSG)])
+	mc.formLayout(paramFormL,e=True,af=[(closestPointCBG,'left',5),(closestPointCBG,'right',5)])
 	
 	# Show Window
 	mc.showWindow(window)
@@ -373,15 +388,29 @@ def stretchyIkSplineFromUI(close=False):
 	scaleAttr = mc.textFieldButtonGrp('stretchyIkSplineScaleAttrTFB',q=True,text=True)
 	blendCtrl = mc.textFieldButtonGrp('stretchyIkSplineBlendCtrlTFB',q=True,text=True)
 	blendAttr = mc.textFieldGrp('stretchyIkSplineBlendAttrTFG',q=True,text=True)
+	useClosestPnt = mc.checkBoxGrp('stretchyIkSplineClosestPointCBG',q=True,v1=True)
 	method = mc.optionMenuGrp('stretchyIkSplineMethodOMG',q=True,sl=True)-1
 	minPercent = mc.floatSliderGrp('stretchyIkSplineMinPFSG',q=True,v=True)
 	maxPercent = mc.floatSliderGrp('stretchyIkSplineMaxPFSG',q=True,v=True)
 	
 	# Execute command
 	if method: # Parametric
-		glTools.builder.stretchyIkSpline_parametric.StretchyIkSpline_parametric().build(ikHandle=ik,scaleAttr=scaleAttr,blendControl=blendCtrl,blendAttr=blendAttr,scaleAxis=scaleAxis,minPercent=minPercent,maxPercent=maxPercent,prefix=pre)
+		glTools.tools.stretchyIkSpline.stretchyIkSpline_parametric(	ikHandle=ik,
+																	scaleAxis=scaleAxis,
+																	scaleAttr=scaleAttr,
+																	blendControl=blendCtrl,
+																	blendAttr=blendAttr,
+																	useClosestPoint=useClosestPnt,
+																	minPercent=minPercent,
+																	maxPercent=maxPercent,
+																	prefix=pre)
 	else: # Arc Length
-		glTools.builder.stretchyIkSpline_arcLength.StretchyIkSpline_arcLength().build(ikHandle=ik,scaleAttr=scaleAttr,blendControl=blendCtrl,blendAttr=blendAttr,scaleAxis=scaleAxis,prefix=pre)
+		glTools.tools.stretchyIkSpline.stretchyIkSpline_arcLength(	ikHandle=ik,
+																	scaleAxis=scaleAxis,
+																	scaleAttr=scaleAttr,
+																	blendControl=blendCtrl,
+																	blendAttr=blendAttr,
+																	prefix=pre)
 	
 	# Cleanup
 	if close: mc.deleteUI(window)

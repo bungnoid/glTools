@@ -2,44 +2,99 @@ import maya.cmds as mc
 import maya.OpenMaya as OpenMaya
 
 import glTools.utils.base
+import glTools.utils.boundingBox
+import glTools.utils.mesh
+import glTools.utils.surface
 
-def volumeComponentSelectionList(mesh,volume):
+def radialComponentSelection(mesh,center,radius=1.0):
 	'''
+	Build component selection from a point and radial distance.
+	@param mesh: Geometry to build component selection from.
+	@type mesh: str
+	@param center: Radial center to build selection from.
+	@type center: str or list
+	@param radius: Radial distance to build selection from.
+	@type radius: float
 	'''
-	# Check mesh
+	# ==========
+	# - Checks -
+	# ==========
+		
+	# Check Mesh
+	if not mc.objExists(mesh):
+		raise Exception('Mesh object "'+mesh+'" does not exist!!')
+	
+	# Get Point
+	pt = glTools.utils.base.getMPoint(center)
+	
+	# ==========================
+	# - Build Radial Selection -
+	# ==========================
+	
+	# Get Component List
+	ptList = glTools.utils.base.getMPointArray(mesh)
+	
+	# Build Selection
+	sel = []
+	for i in range(ptList.length()):
+		dist = (pt - ptList[i]).length()
+		if dist <= radius: sel.append(mesh+'.vtx['+str(i)+']')
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return sel
+
+def volumeComponentSelection(mesh,volume):
+	'''
+	Build component selection from volume.
+	@param mesh: Geometry to build component selection from.
+	@type mesh: str
+	@param volume: Volume shape to build component selection from.
+	@type volume: str
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+		
+	# Check Mesh
 	if not mc.objExists(mesh):
 		raise Exception('Mesh object "'+mesh+'" does not exist!!')
 		
-	# Check volume
+	# Check Volume
 	if not mc.objExists(volume):
 		raise Exception('Volume object "'+volume+'" does not exist!!')
 	
-	# Get volume type
+	# Get Volume Type
 	volumeShape = volume
 	if mc.objectType(volumeShape) == 'transform':
 		volumeShape = mc.listRelatives(volume,s=True,ni=True)
 		if not volumeShape: raise Exception('Volume object "'+mesh+'" does not exist!!')
 		else: volumeShape = volumeShape[0]
 	volumeType = mc.objectType(volumeShape)
-	# Convert to polygon volume if necessary
-	nurbsToPolyConvert = []
+	
+	# Convert to Polygon Volume (if necessary)
+	nurbsToPolyConvert = None
 	if volumeType == 'nurbsSurface':
 		nurbsToPolyConvert = mc.nurbsToPoly(volumeShape,ch=0,f=1,pt=1,ft=0.01,mel=0.001,d=0.1)
 		nurbsToPolyShape = mc.listRelatives(nurbsToPolyConvert,s=True,ni=True)
 		volumeShape = nurbsToPolyShape[0]
 	
-	# Create funtion set for volume object
-	volumeObj = glTools.utils.base.getMDagPath(volumeShape)
-	volumeFn = OpenMaya.MFnMesh(volumeObj)
+	# ==========================
+	# - Build Volume Selection -
+	# ==========================
 	
-	# Get bounding box
-	volumeBBox = OpenMaya.MFnDagNode(volumeObj).boundingBox()
-	volumeBBox.transformUsing(volumeObj.inclusiveMatrix())
+	# Create Funtion Set for Volume Mesh
+	volumeFn = glTools.utils.mesh.getMeshFn(volume)
 	
-	# Get mesh vertices
+	# Get Bounding Box
+	volumeBBox = glTools.utils.base.getMBoundingBox(volume)
+	
+	# Get Vertices
 	pntList = glTools.utils.base.getMPointArray(mesh)
 	
-	# Build selection list
+	# Build Selection List
 	sel = []
 	point = OpenMaya.MPoint()
 	normal = OpenMaya.MVector()
@@ -49,8 +104,14 @@ def volumeComponentSelectionList(mesh,volume):
 		dotVal = normal * (point-pntList[i]).normal()
 		if dotVal > 0.0: sel.append(mesh+'.vtx['+str(i)+']')
 	
-	# Clean up
+	# ===========
+	# - Cleanup -
+	# ===========
+	
 	if nurbsToPolyConvert: mc.delete(nurbsToPolyConvert)
 	
-	# Return result
+	# =================
+	# - Return Result -
+	# =================
+	
 	return sel

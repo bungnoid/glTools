@@ -1,70 +1,97 @@
 import maya.cmds as mc
 
-import deformerData
+import glTools.utils.base
 
-# Create exception class
-class UserInputError(Exception): pass
+import deformerData
 
 class ClusterData( deformerData.DeformerData ):
 	'''
 	ClusterData class object.
-	Contains functions to save, load and rebuild cluster deformer data.
 	'''
+	def __init__(self):
+		'''
+		ClusterData class initializer.
+		'''
+		# Execute Super Class Initilizer
+		super(ClusterData, self).__init__()
+		
+		# Initialize Cluster Handle Data
+		self._data['clusterHandle'] = ''
+		
+		# Deformer Attribute Connections
+		#self._data['attrConnectionList'].append('matrix')
+		self._data['attrConnectionList'].append('bindPreMatrix')
+		self._data['attrConnectionList'].append('geomMatrix')
 	
-	# INIT
-	def __init__(self,cluster=''):
-		
-		# Escape
-		if not cluster: return
-		
+	def buildData(self,cluster):
+		'''
+		Build ClusterData class data.
+		@param cluster: Cluster deformer to initialize data for
+		@type cluster: str
+		'''
 		# Verify node
-		if not mc.objExists(cluster):
-			raise UserInputError('Cluster '+cluster+' does not exists! No influence data recorded!!')
-		if mc.objectType(cluster) != 'cluster':
-			raise UserInputError('Object '+cluster+' is not a vaild cluster deformer! Incorrect class for node type '+self.type+'!!')
+		glTools.utils.base.verifyNode(cluster,'cluster')
 		
-		# Execute super class initilizer
-		super(ClusterData, self).__init__(cluster)
+		# Reset Data Object
+		self.reset()
 		
-		# Get clusterHandle name
-		self.handle = mc.listConnections(cluster+'.matrix',s=True,d=False)[0]
-		# Get bindPreMatrix connection
-		self.bindPreMatrix = mc.listConnections(cluster+'.bindPreMatrix',s=True,d=False,p=True)
-		# Get geomMatrix connection list
-		self.geomMatrix = self.connectionUtils.connectionListToAttr(cluster,'geomMatrix')
+		# Buid Data
+		super(ClusterData, self).buildData(cluster)
+		
+		# Store ClusterHandle Data
+		clsHandle = mc.listConnections(cluster+'.matrix',s=True,d=False,sh=True)
+		if clsHandle: self._data['clusterHandle'] = clsHandle[0]
+		
+		# Return Result
+		return cluster
 	
-	def rebuild(self):
+	def rebuild(self,overrides={}):
 		'''
 		Rebuild the cluster deformer from the recorded deformerData
+		@param overrides: Dictionary of data overrides to apply 
+		@type overrides: dict
 		'''
+		# Apply Overrides
+		self._data.update(overrides)
+		
+		# ==========
+		# - Checks -
+		# ==========
+		
 		# Check target geometry
-		for obj in self.deformerData.iterkeys():
-			if not mc.objExists(obj): raise UserInputError('Object '+obj+' does not exist!')
-		# Check deformer
-		if mc.objExists(self.deformerName):
-			raise UserInputError('Cluster '+self.deformerName+' already exists!')
+		for obj in self._data['affectedGeometry']:
+			if not mc.objExists(obj):
+				raise Exception('Deformer affected object "'+obj+'" does not exist!')
 		
-		# Rebuild deformer
-		cluster = None
-		if mc.objExists(self.handle):
-			cluster = mc.cluster(self.getMemberList(),n=self.deformerName,wn=(self.handle,self.handle))
+		# ====================
+		# - Rebuild Deformer -
+		# ====================
+		
+		# Build Cluster Deformer and Handle
+		if not mc.objExists(self._data['name']):
+			# Create New Cluster
+			cluster = mc.cluster(self.getMemberList(),n=self._data['name'])
+			self._data['name'] = cluster[0]
 		else:
-			cluster = mc.cluster(self.getMemberList(),n=self.deformerName)
-			if cluster[1] != self.handle: mc.rename(cluster[1],self.handle)
-		deformer = cluster[0]
+			# Check Cluster
+			if mc.objectType(self._data['name']) != 'cluster':
+				raise Exception('Object "'+self._data['name']+'" is not a valid cluster deformer!')
 		
-		# Connect bindPreMatrix
-		if self.bindPreMatrix:
-			if mc.objExists(self.bindPreMatrix[0]):
-				mc.connectAttr(self.bindPreMatrix[0],cluster+'.bindPreMatrix')
+		# Rebuild Deformer
+		result = super(ClusterData, self).rebuild(overrides)
 		
-		# Connect geomMatrix
-		for conn in self.geomMatrix.iterkeys():
-			if mc.objExists(conn):
-				mc.connectAttr(conn+'.'+self.geomMatrix[conn][0],cluster+'.geomMatrix['+str(self.geomMatrix[conn][1])+']')
+		# Restore ClusterHandle Data
+		if self._data['clusterHandle']:
+			if not mc.objExists(self._data['clusterHandle']):
+				raise Exception('Weighted Node "'+self._data['clusterHandle']+'" does not exist!')
+			try:
+				mc.cluster(self._data['name'],edit=True,bindState=True,wn=(self._data['clusterHandle'],self._data['clusterHandle']))
+			except:
+				pass
 		
-		# Set cluster weights
-		self.loadWeights()
+		# =================
+		# - Return Result -
+		# =================
 		
-		# Return result
-		return deformer
+		return result
+		

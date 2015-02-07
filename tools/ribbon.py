@@ -5,7 +5,7 @@ import maya.cmds as mc
 import glTools.utils.attach
 import glTools.utils.base
 import glTools.utils.constraint
-import glTools.tools.controlBuilder
+import ctrlBuilder
 import glTools.utils.curve
 import glTools.utils.shape
 import glTools.utils.stringUtils
@@ -167,12 +167,14 @@ def create_basic(length=10.0,width=0.5,mainCtrls=4,subCtrls=10,surface=True,curv
 	# - Create Base Control -
 	# -----------------------
 	
+	ctrlBuilder = glTools.tools.controlBuilder.ControlBuilder()
+	
 	mc.select(cl=True)
 	base_jnt = mc.joint(n=prefix+'_base_jnt',radius=0.0)
 	base_grp = mc.group(base_jnt,n=prefix+'_base_grp')
 	mc.parent(base_grp,ctrl_grp)
 	
-	glTools.tools.controlBuilder.controlShape(base_jnt,'circle',rotate=(90,0,0),scale=0.2*length)
+	ctrlBuilder.controlShape(base_jnt,'circle',rotate=(90,0,0),scale=0.2*length)
 	
 	# ------------------------
 	# - Create Main Controls -
@@ -191,7 +193,7 @@ def create_basic(length=10.0,width=0.5,mainCtrls=4,subCtrls=10,surface=True,curv
 		jnt = mc.joint(n=prefix+'_main'+index+'_jnt',radius=0.0)
 		grp = mc.group(jnt,n=prefix+'_main'+index+'_grp')
 		
-		glTools.tools.controlBuilder.controlShape(jnt,'square',rotate=(90,0,0),scale=0.125*length)
+		ctrlBuilder.controlShape(jnt,'square',rotate=(90,0,0),scale=0.125*length)
 		
 		# Position main control joint
 		locs = [base_crv_0_locs[i],base_crv_1_locs[i]]
@@ -227,7 +229,7 @@ def create_basic(length=10.0,width=0.5,mainCtrls=4,subCtrls=10,surface=True,curv
 		sub_jnt = mc.joint(n=prefix+'_sub'+index+'_jnt',radius=0.0)
 		sub_grp = mc.group(sub_jnt,n=prefix+'_sub'+index+'_grp')
 		
-		glTools.tools.controlBuilder.controlShape(sub_jnt,'box',scale=0.025*length)
+		ctrlBuilder.controlShape(sub_jnt,'box',scale=0.025*length)
 		
 		# Position and attach sub controls
 		mc.setAttr(sub_grp+'.t',0.0,(sub_inc*i),0.0)
@@ -392,7 +394,7 @@ def create(length=10.0,width=0.5,mainCtrls=4,subCtrls=10,surface=True,curve=Fals
 	base_grp = mc.group(base_jnt,n=prefix+'_baseA_grp')
 	mc.parent(base_grp,ctrl_grp)
 	
-	glTools.tools.controlBuilder.controlShape(base_jnt,'circle',rotate=(90,0,0),scale=0.2*length)
+	ctrlBuilder.controlShape(base_jnt,'circle',rotate=(90,0,0),scale=0.2*length)
 	
 	# Tip Control
 	mc.select(cl=True)
@@ -402,7 +404,7 @@ def create(length=10.0,width=0.5,mainCtrls=4,subCtrls=10,surface=True,curve=Fals
 	# Position Tip
 	mc.move(0,length,0,tip_grp,ws=True,a=True)
 	
-	glTools.tools.controlBuilder.controlShape(tip_jnt,'circle',rotate=(90,0,0),scale=0.2*length)
+	ctrlBuilder.controlShape(tip_jnt,'circle',rotate=(90,0,0),scale=0.2*length)
 	
 	# ------------------------
 	# - Create Main Controls -
@@ -427,7 +429,7 @@ def create(length=10.0,width=0.5,mainCtrls=4,subCtrls=10,surface=True,curve=Fals
 		jnt = mc.joint(n=prefix+'_main'+index+'_jnt',radius=0.0)
 		grp = mc.group(jnt,n=prefix+'_main'+index+'_grp')
 		
-		glTools.tools.controlBuilder.controlShape(jnt,'square',rotate=(90,0,0),scale=0.125*length)
+		ctrlBuilder.controlShape(jnt,'square',rotate=(90,0,0),scale=0.125*length)
 		
 		# Position main control joint
 		locs = [base_crv_0_locs[i],base_crv_1_locs[i]]
@@ -473,7 +475,7 @@ def create(length=10.0,width=0.5,mainCtrls=4,subCtrls=10,surface=True,curve=Fals
 		sub_jnt = mc.joint(n=prefix+'_sub'+index+'_jnt',radius=0.0)
 		sub_grp = mc.group(sub_jnt,n=prefix+'_sub'+index+'_grp')
 		
-		glTools.tools.controlBuilder.controlShape(sub_jnt,'box',scale=0.025*length)
+		ctrlBuilder.controlShape(sub_jnt,'box',scale=0.025*length)
 		
 		# Position and attach sub controls
 		mc.setAttr(sub_grp+'.t',pts[i][0],pts[i][1],pts[i][2])

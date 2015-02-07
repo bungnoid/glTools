@@ -2,11 +2,20 @@ import maya.cmds as mc
 
 import glTools.utils.stringUtils
 
-def poseDrivenAttr(poseTransform,poseAxis,targetAttr,upAxis='',remapValue=False,arclen=False,prefix=''):
+def poseDrivenAttr(	poseTransform,
+					poseReference,
+					poseAxis,
+					targetAttr,
+					upAxis		= None,
+					remapValue	= False,
+					arclen		= False,
+					prefix		= None	):
 	'''
 	Create a pose driven attribute.
 	@param poseTransform: The transform that the pose is based on
 	@type poseTransform: str
+	@param poseReference: The reference transform that the pose axis is compared against
+	@type poseReference: str
 	@param poseAxis: The axis of the pose transform that will define the pose
 	@type poseAxis: str
 	@param targetAttr: The attribute that will be driven by the pose
@@ -20,9 +29,20 @@ def poseDrivenAttr(poseTransform,poseAxis,targetAttr,upAxis='',remapValue=False,
 	@param prefix: The name prefix for all created nodes
 	@type prefix: str
 	'''
-	# ----------
+	# ==========
 	# - Checks -
-	# ----------
+	# ==========
+	
+	axisList = ['x','y','z'] #,'+x','+y','+z','-x','-y','-z']
+	axisVector = {	'x':[1,0,0],
+					'y':[0,1,0],
+					'z':[0,0,1] } #,
+					#'+x':[1,0,0],
+					#'+y':[0,1,0],
+					#'+z':[0,0,1],
+					#'-x':[-1,0,0],
+					#'-y':[0,-1,0],
+					#'-z':[0,0,-1] }
 	
 	# Check pose transform
 	if not mc.objExists(poseTransform):
@@ -34,43 +54,43 @@ def poseDrivenAttr(poseTransform,poseAxis,targetAttr,upAxis='',remapValue=False,
 	
 	# Check reference axis
 	poseAxis = poseAxis.lower()
-	if not poseAxis in ['x','y','z']:
+	if not poseAxis in axisList:
 		raise Exception('Invalid pose axis! Valid pose axis values are "x" "y" and "z"!!')
 	
 	# Check up axis
 	if upAxis:
 		upAxis = upAxis.lower()
-		if not upAxis in ['x','y','z']:
+		if not upAxis in axisList:
 			raise Exception('Invalid up axis! Valid up axis values are "x" "y" and "z"!!')
 		if upAxis == poseAxis:
 			raise Exception('Pose axis and Up axis must be unique!!')
 			
 	# Check arclen
 	if arclen:
-		if not mc.pluginInfo('ikaRigTools',l=True):
-			try: mc.loadPlugin('ikaRigTools')
-			except: raise Exception('Error loading plugin ikaRigTools!!')
+		if not mc.pluginInfo('glToolsTools',q=True,l=True):
+			try: mc.loadPlugin('glToolsTools')
+			except: raise Exception('Error loading plugin glToolsTools!!')
 	
 	# Check prefix
 	if not prefix:
 		prefix = glTools.utils.stringUtils.stripSuffix(poseTransform)
 	
-	# ----------------------------------
-	# - Create poseReference transform -
-	# ----------------------------------
+	# ==================================
+	# - Create PoseReference Transform -
+	# ==================================
 	
-	poseReference = prefix+'_poseReference'
-	poseReference = mc.duplicate(poseTransform,parentOnly=True,n=poseReference)[0]
+	if not poseReference:
+		poseReference = mc.duplicate(poseTransform,parentOnly=True,n=prefix+'_poseReference')[0]
 	
 	# Add poseTransform message attribute
 	mc.addAttr(poseReference,ln='poseTransform',at='message')
 	mc.connectAttr(poseTransform+'.message',poseReference+'.poseTransform',f=True)
 	
-	# ------------------------------------
+	# ====================================
 	# - Create vector comparison network -
-	# ------------------------------------
+	# ====================================
 	
-	poseVector = {'x':[1,0,0],'y':[0,1,0],'z':[0,0,1]}[poseAxis]
+	poseVector = axisVector[poseAxis]
 	poseResultAttr = ''
 	
 	if arclen:
@@ -82,12 +102,8 @@ def poseDrivenAttr(poseTransform,poseAxis,targetAttr,upAxis='',remapValue=False,
 		mc.setAttr(pose_arcDist+'.vector1',poseVector[0],poseVector[1],poseVector[2])
 		mc.setAttr(pose_arcDist+'.vector2',poseVector[0],poseVector[1],poseVector[2])
 		
-		# Invert arcDistance values
-		pose_arcDist_reverse = mc.createNode('reverse',n=prefix+'_arcDist_reverse')
-		mc.connectAttr(pose_arcDist+'.arcDistance',pose_arcDist_reverse+'.inputX',f=True)
-		
-		# Set pose compare attribute
-		poseResultAttr = pose_arcDist_reverse+'.outputX'
+		# Set Pose Result
+		poseResultAttr = pose_arcDist+'.arcDistance'
 	
 	else:
 		
@@ -112,16 +128,16 @@ def poseDrivenAttr(poseTransform,poseAxis,targetAttr,upAxis='',remapValue=False,
 		mc.connectAttr(poseVecDotProduct+'.output',poseVecCompare_dotProduct+'.input1',f=True)
 		mc.connectAttr(referenceVecDotProduct+'.output',poseVecCompare_dotProduct+'.input2',f=True)
 		
-		# Set pose compare attribute
+		# Set Pose Result
 		poseResultAttr = poseVecCompare_dotProduct+'.output'
 	
-	# -------------------------------
+	# ===============================
 	# - Check Pose Twist (UpVector) -
-	# -------------------------------
+	# ===============================
 	
 	if upAxis:
 		
-		upVector = {'x':[1,0,0],'y':[0,1,0],'z':[0,0,1]}[upAxis]
+		upVector = axisVector[upAxis]
 		
 		# Multiply Result
 		poseResult_mdl = mc.createNode('multDoubleLinear',n=prefix+'_poseResult_multDoubleLinear')
@@ -172,9 +188,9 @@ def poseDrivenAttr(poseTransform,poseAxis,targetAttr,upAxis='',remapValue=False,
 		# Set pose compare attribute
 		poseResultAttr = poseResult_mdl+'.output'
 		
-	# -----------------------
+	# =======================
 	# - Remap output Values -
-	# -----------------------
+	# =======================
 	
 	# Initialize variables
 	remapValueNode = ''
@@ -187,14 +203,101 @@ def poseDrivenAttr(poseTransform,poseAxis,targetAttr,upAxis='',remapValue=False,
 		mc.connectAttr(poseResultAttr,remapValueNode+'.inputValue',f=True)
 		poseResultAttr = remapValueNode+'.outValue'
 		
-	# --------------------------
+	# ==========================
 	# - Connect to Target Attr -
-	# --------------------------
+	# ==========================
 	
 	mc.connectAttr(poseResultAttr,targetAttr,f=True)
 	
-	# -----------------
+	# =================
 	# - Return Result -
-	# -----------------
+	# =================
 	
 	return [poseReference,remapValueNode]
+
+def addPoseData(	poseNode,
+					poseAttr,
+					poseTransform,
+					poseReference,
+					poseAxis,
+					upAxis='',
+					remapValue=False,
+					arclen=False,
+					prefix=''):
+	'''
+	Add a pose space driven attribute to a specified "poseNode".
+	Pose data is stored under a multi attribute named "poseData".
+	Each index of the poseData multi will be assigned an alias specified by the poseAttr argument.
+	@param poseNode: The node to add the pose driven attributes to.
+	@type poseNode: str
+	@param poseAttr: The attribute name alias assigned to the poseData multi element created by this command.
+	@type poseAttr: str
+	@param poseTransform: The transform that the pose is based on
+	@type poseTransform: str
+	@param poseReference: The reference transform that the pose axis is compared against
+	@type poseReference: str
+	@param poseAxis: The axis of the pose transform that will define the pose
+	@type poseAxis: str
+	@param upAxis: The axis of the pose transform that will define the pose twist (upVector)...optional.
+	@type upAxis: str
+	@param remapValue: Remap the resulting pose value via a remapValue node
+	@type remapValue: bool
+	@param arclen: Use vector arc length instead of dot product. Arc length method provides a more linear result.
+	@type arclen: bool
+	@param prefix: The name prefix for all created nodes
+	@type prefix: str
+	'''
+	# ======================
+	# - Check Rig All Node -
+	# ======================
+	
+	# Check poseNode
+	if not mc.objExists(poseNode):
+		raise Exception('Pose node "'+poseNode+'" does not exist!')
+	
+	# Check PoseAttr
+	if mc.attributeQuery(poseAttr,node=poseNode,exists=True):
+		raise Exception('Pose attribute "'+poseNode+'.'+poseAttr+'" already exists!')
+	
+	# ==================
+	# - Check PoseData -
+	# ==================
+	
+	# Define PoseData Attribute
+	poseDataAttr = 'poseData'
+	
+	# Add PoseData Attribute (multi)
+	if not mc.attributeQuery(poseDataAttr,node=poseNode,exists=True):
+		mc.addAttr(poseNode,ln=poseDataAttr,m=True,dv=-2)
+	
+	# ======================
+	# - Add PoseData Entry -
+	# ======================
+	
+	# Get next available poseData index
+	poseDataIndex = mc.getAttr(poseNode+'.'+poseDataAttr,s=True)
+	
+	# Initialize poseData at current index
+	mc.setAttr(poseNode+'.'+poseDataAttr+'['+str(poseDataIndex)+']',0)
+	
+	# Alias attribute
+	mc.aliasAttr(poseAttr,poseNode+'.'+poseDataAttr+'['+str(poseDataIndex)+']')
+	
+	# ====================
+	# - Connect PoseData -
+	# ====================
+	
+	pose = glTools.tools.poseSpace.poseDrivenAttr(	poseTransform=poseTransform,
+													poseReference=poseReference,
+													poseAxis=poseAxis,
+													targetAttr=poseNode+'.'+poseAttr,
+													upAxis=upAxis,
+													remapValue=remapValue,
+													arclen=arclen,
+													prefix=prefix	)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return poseNode+'.'+poseAttr

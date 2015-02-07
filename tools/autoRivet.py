@@ -3,6 +3,7 @@ import maya.cmds as mc
 import maya.OpenMaya as OpenMaya
 
 import glTools.utils.base
+import glTools.utils.component
 import glTools.utils.mesh
 import glTools.utils.stringUtils
 import glTools.utils.surface
@@ -134,3 +135,220 @@ def autoRivet(createRivetTransform=True,suffix='rvt'):
 	# =================
 	
 	return rvtTransform
+
+def meshFaceConstraint(face='',transform='',orient=True,prefix=''):
+	'''
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	if not prefix: prefix = 'meshFaceConstraint'
+	
+	if not face:
+		faceList = mc.filterExpand(sm=34)
+		if not faceList: raise Exception('No mesh face specified for constraint!')
+		face = faceList[0]
+	if not transform:
+		transformList = mc.ls(sl=True,type='transform')
+		if not transformList: transformList = mc.spaceLocator(n=prefix+'_locator')
+		transform = transformList[0]
+	
+	# ======================
+	# - Get Face UV Center -
+	# ======================
+	
+	# Get Face Details
+	mesh = mc.ls(face,o=True)[0]
+	faceId = glTools.utils.component.index(face)
+	
+	# Get Mesh Face Function Set
+	uArray = OpenMaya.MFloatArray()
+	vArray = OpenMaya.MFloatArray()
+	faceIdUtil = OpenMaya.MScriptUtil()
+	faceIdUtil.createFromInt(0)
+	faceIdPtr = faceIdUtil.asIntPtr()
+	faceIt = glTools.utils.mesh.getMeshFaceIter(mesh)
+	faceIt.setIndex(faceId,faceIdPtr)
+	
+	# Get UV Center
+	uvSet = mc.polyUVSet(mesh,q=True,cuv=True)
+	faceIt.getUVs(uArray,vArray)
+	uArray = list(uArray)
+	vArray = list(vArray)
+	uvCount = len(uArray)
+	u = 0.0
+	v = 0.0
+	for i in range(uvCount):
+		u += (uArray[i] / uvCount)
+		v += (vArray[i] / uvCount)
+	
+	# =====================
+	# - Create Constraint -
+	# =====================
+	
+	r = mc.getAttr(transform+'.r')[0]
+	
+	meshCon = mc.pointOnPolyConstraint(mesh,transform,n=prefix+'_pointOnPolyConstraint')[0]
+	wtAlias = mc.pointOnPolyConstraint(meshCon,q=True,wal=True)[0]
+	mc.setAttr(meshCon+'.'+wtAlias.replace('W0','U0'),u)
+	mc.setAttr(meshCon+'.'+wtAlias.replace('W0','V0'),v)
+	
+	# Orient
+	if not orient:
+		rxConn = mc.listConnections(transform+'.rx',s=True,d=False,p=True)[0]
+		mc.disconnectAttr(rxConn,transform+'.rx')
+		ryConn = mc.listConnections(transform+'.ry',s=True,d=False,p=True)[0]
+		mc.disconnectAttr(ryConn,transform+'.ry')
+		rzConn = mc.listConnections(transform+'.rz',s=True,d=False,p=True)[0]
+		mc.disconnectAttr(rzConn,transform+'.rz')
+		mc.setAttr(transform+'.r',*r)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return meshCon
+	
+def meshVertexConstraint(vertex='',transform='',orient=True,prefix=''):
+	'''
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	if not prefix: prefix = 'meshVertexConstraint'
+	
+	if not vertex:
+		vtxList = mc.filterExpand(sm=31)
+		if not vtxList: raise Exception('No mesh vertex specified for constraint!')
+		vertex = vtxList[0]
+	if not transform:
+		transformList = mc.ls(sl=True,type='transform')
+		if not transformList: transformList = mc.spaceLocator(n=prefix+'_locator')
+		transform = transformList[0]
+	
+	# =================
+	# - Get Vertex UV -
+	# =================
+	
+	# Get Vertex Details
+	mesh = mc.ls(vertex,o=True)[0]
+	vtxId = glTools.utils.component.index(vertex)
+	
+	# Get Mesh Vertex Function Set
+	uArray = OpenMaya.MFloatArray()
+	vArray = OpenMaya.MFloatArray()
+	faceArray = OpenMaya.MIntArray()
+	vtxIdUtil = OpenMaya.MScriptUtil()
+	vtxIdUtil.createFromInt(0)
+	vtxIdPtr = vtxIdUtil.asIntPtr()
+	vtxIt = glTools.utils.mesh.getMeshVertexIter(mesh)
+	vtxIt.setIndex(vtxId,vtxIdPtr)
+	
+	# Get UV Center
+	uvSet = mc.polyUVSet(mesh,q=True,cuv=True)
+	vtxIt.getUVs(uArray,vArray,faceArray)
+	uArray = list(uArray)
+	vArray = list(vArray)
+	u = uArray[0]
+	v = vArray[0]
+	
+	# =====================
+	# - Create Constraint -
+	# =====================
+	
+	r = mc.getAttr(transform+'.r')[0]
+	
+	meshCon = mc.pointOnPolyConstraint(mesh,transform,n=prefix+'_pointOnPolyConstraint')[0]
+	wtAlias = mc.pointOnPolyConstraint(meshCon,q=True,wal=True)[0]
+	mc.setAttr(meshCon+'.'+wtAlias.replace('W0','U0'),u)
+	mc.setAttr(meshCon+'.'+wtAlias.replace('W0','V0'),v)
+	
+	# Orient
+	if not orient:
+		rxConn = mc.listConnections(transform+'.rx',s=True,d=False,p=True)[0]
+		mc.disconnectAttr(rxConn,transform+'.rx')
+		ryConn = mc.listConnections(transform+'.ry',s=True,d=False,p=True)[0]
+		mc.disconnectAttr(ryConn,transform+'.ry')
+		rzConn = mc.listConnections(transform+'.rz',s=True,d=False,p=True)[0]
+		mc.disconnectAttr(rzConn,transform+'.rz')
+		mc.setAttr(transform+'.r',*r)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return meshCon
+
+def meshFaceConstraintList(faceList=[],transformList=[],orient=True,prefix=''):
+	'''
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	# Face List
+	if not faceList:
+		faceList = mc.filterExpand(sm=34)
+		if not faceList: raise Exception('No mesh face list specified for constraint!')
+	
+	# Transform List
+	if not transformList:
+		transformList = ['' for vtx in vtxList]
+	
+	# Vertex / Face list length
+	if not len(faceList) == len(transformList):
+		raise Exception('Face and Transform list length mis-match!')
+	
+	# ======================
+	# - Create Constraints -
+	# ======================
+	
+	constraintList = []
+	for i in range(len(faceList)):
+		mc.select(cl=True)
+		itPrefix = prefix+'_'+str(i)
+		constraintList.append(meshFaceConstraint(faceList[i],transformList[i],orient=orient,prefix=itPrefix))
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return constraintList
+
+def meshVertexConstraintList(vtxList=[],transformList=[],orient=True,prefix=''):
+	'''
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	# Vertex List
+	if not vtxList:
+		vtxList = mc.filterExpand(sm=31)
+		if not vtxList: raise Exception('No mesh vertex list specified for constraint!')
+	
+	# Transform List
+	if not transformList:
+		transformList = ['' for vtx in vtxList]
+	
+	# Vertex / Transform list length
+	if not len(vtxList) == len(transformList):
+		raise Exception('Vertex and Transform list length mis-match!')
+	
+	# ======================
+	# - Create Constraints -
+	# ======================
+	
+	constraintList = []
+	for i in range(len(vtxList)):
+		mc.select(cl=True)
+		itPrefix = prefix+'_'+str(i)
+		constraintList.append(meshVertexConstraint(vtxList[i],transformList[i],orient=orient,prefix=itPrefix))
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return constraintList

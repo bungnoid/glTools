@@ -8,29 +8,41 @@ class EvaluationOrder( object ):
 	'''
 	This python class object is used to determine a reliable evaluation order for a hierarchy of rig controls.
 	The DependencyHierarchyNode object is first used to map an entire rig hierarchy. Class methods of the
-	EvaluationOrder class are then used to reshuffle the hierarchy based on various rig dependencies.
+	EvaluationOrder class is then used to reshuffle the hierarchy based on various rig dependencies.
 	'''
-	def __init__(self,root,debug=False):
+	def __init__(self,debug=False):
 		'''
+		EvaluationOrder object initializer
 		'''
-		# Transform type list
+		# Valid transform type list
 		self.transform = ['transform','joint','ikHandle']
-		# Hierarchy root
-		self.root = root
-		# Attribute
+		# Define default Attribute name
 		self.attribute = 'evalOrder'
-		# Initialize dependancy network
+		# Initialize hierarchy root
+		self.root = ''
+		# Initialize dependencyHierarchyNode
 		self.hierarchy = glTools.tools.dependencyHierarchyNode.DependencyHierarchyNode()
-		self.hierarchy.buildHierarchyFromNode(root)
+		
 		# DEBUG
 		self.debug = debug
+	
+	def buildHierarchy(self,root):
+		'''
+		'''
+		# Check Root
+		if not mc.objExists(root):
+			raise Exception('Hierarchy root node "'+root+'" does not exist!')
+		# Set Root
+		self.root = root
+		# Build Hierarchy from Root
+		self.hierarchy.buildHierarchyFromNode(root)
 	
 	def reorder(self):
 		'''
 		Reorder hierarchy based on ik and constraint relationships
 		'''
-		ikReorder()
-		constraintReorder()
+		self.ikReorder()
+		self.constraintReorder()
 	
 	def ikReorder(self):
 		'''
@@ -63,7 +75,8 @@ class EvaluationOrder( object ):
 		@type constraintList: list
 		'''
 		# Iterate through all constraints below hierarchy root
-		if not constraintList: constraintList = mc.listRelatives(self.hierarchy.fullName,ad=True,type='constraint')
+		if not constraintList:
+			constraintList = mc.listRelatives(self.hierarchy.fullName,ad=True,type='constraint')
 		
 		if self.debug: print constraintList
 		
@@ -115,7 +128,7 @@ class EvaluationOrder( object ):
 		'''
 		# Check object exists
 		if not mc.objExists(target):
-			raise UserInputError('Target object '+target+' does not exist!')
+			raise Exception('Target object '+target+' does not exist!')
 		# Create attribute
 		if not mc.objExists(target+'.'+self.attribute):
 			mc.addAttr( target,ln=self.attribute,dt='string',multi=True,h=True)
@@ -134,7 +147,7 @@ class EvaluationOrder( object ):
 		'''
 		# Check object exists
 		if not mc.objExists(target):
-			raise UserInputError('Target object '+target+' does not exist!')
+			raise Exception('Target object '+target+' does not exist!')
 		# Create attribute
 		if mc.objExists(target+'.'+self.attribute):
 			mc.deleteAttr(target,at=self.attribute)

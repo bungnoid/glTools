@@ -5,7 +5,7 @@ def setDrivenKeyToRemapValue(animCurve,remapValueNode='',interpType=3,deleteAnim
 	'''
 	Convert a set driven key setup to a remapValue node.
 	Each key on the animCurve node is represented as widget on the remapValue ramp control.
-	Incoming and outgoing curve connections will be replaced with equivalent remapVlue connections.
+	Incoming and outgoing curve connections will be replaced with equivalent remapValue connections.
 	@param animCurve: The animCurve to convert to a remapValue node
 	@type animCurve: str
 	@param remapValueNode: Name an existing remapValue node to use instead of creating a new one.

@@ -1,13 +1,12 @@
 import maya.cmds as mc
-import glTools.common.namingConvention
-import glTools.common.arrayUtilities
 
-class UserInputError( Exception ): pass
+import glTools.tools.namingConvention
 
 class Tag( object ):
 	
 	def __init__(self):
-		#
+		'''
+		'''
 		self.nameTagAttr = 'nameTag'
 	
 	def addNameTag(self,control,tag):
@@ -16,7 +15,7 @@ class Tag( object ):
 		'''
 		
 		# Check control
-		if not mc.objExists(control): raise UserInputError('Object '+control+' does not exist!')
+		if not mc.objExists(control): raise Exception('Object '+control+' does not exist!')
 		
 		# Add Tag attribute
 		if mc.objExists(control+'.'+self.nameTagAttr):
@@ -29,9 +28,9 @@ class Tag( object ):
 		'''
 		
 		# Check control
-		if not mc.objExists(control): raise UserInputError('Object '+control+' does not exist!')
+		if not mc.objExists(control): raise Exception('Object '+control+' does not exist!')
 		# Check tag attribute
-		if not mc.objExists(control+'.'+self.nameTagAttr): raise UserInputError('Object '+control+' does not have a "'+self.nameTagAttr+'" attribute!')
+		if not mc.objExists(control+'.'+self.nameTagAttr): raise Exception('Object '+control+' does not have a "'+self.nameTagAttr+'" attribute!')
 		# Return tag string value
 		return mc.getAttr(control+'.'+self.nameTagAttr)
 	
@@ -43,12 +42,11 @@ class Tag( object ):
 		tag = ''
 		
 		# Get naming convention dictionaries
-		nameConvention = glTools.common.namingConvention.NamingConvention()
-		arrayUtil = glTools.common.arrayUtilities.ArrayUtilities()
-		sideDict = arrayUtil.swapKeyValuePairs(nameConvention.side)
-		partDict = arrayUtil.swapKeyValuePairs(nameConvention.part)
-		subPartDict = arrayUtil.swapKeyValuePairs(nameConvention.subPart)
-		nodeDict = arrayUtil.swapKeyValuePairs(nameConvention.node)
+		nameConvention = glTools.tools.namingConvention.NamingConvention()
+		sideDict = dict((value, key) for key, value in nameConvention.side.iteritems())
+		partDict = dict((value, key) for key, value in nameConvention.part.iteritems())
+		subPartDict = dict((value, key) for key, value in nameConvention.subPart.iteritems())
+		nodeDict = dict((value, key) for key, value in nameConvention.node.iteritems())
 		
 		# Get name elements
 		controlElem = control.split(nameConvention.delineator)

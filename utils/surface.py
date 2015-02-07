@@ -1,15 +1,15 @@
 import maya.cmds as mc
 import maya.OpenMaya as OpenMaya
 
+import glTools.utils.base
 import glTools.utils.curve
 import glTools.utils.component
+import glTools.utils.mathUtils
 import glTools.utils.matrix
 import glTools.utils.shape
 import glTools.utils.stringUtils
 
 import math
-
-class UserInputError( Exception ): pass
 
 def isSurface(surface):
 	'''
@@ -20,7 +20,7 @@ def isSurface(surface):
 	# Check object exists
 	if not mc.objExists(surface): return False
 	# Check shape
-	if mc.objectType(surface) == 'transform': surface = mc.listRelatives(surface,s=True,ni=True)[0]
+	if mc.objectType(surface) == 'transform': surface = mc.listRelatives(surface,s=True,ni=True,pa=True)[0]
 	if mc.objectType(surface) != 'nurbsSurface': return False
 	
 	# Return result
@@ -33,9 +33,9 @@ def getSurfaceFn(surface):
 	@type surface: str
 	'''
 	# Checks
-	if not isSurface(surface): raise UserInputError('Object '+surface+' is not a valid surface!')
+	if not isSurface(surface): raise Exception('Object '+surface+' is not a valid surface!')
 	if mc.objectType(surface) == 'transform':
-		surface = mc.listRelatives(surface,s=True,ni=True)[0]
+		surface = mc.listRelatives(surface,s=True,ni=True,pa=True)[0]
 	
 	# Get MFnNurbsSurface
 	selection = OpenMaya.MSelectionList()
@@ -59,7 +59,7 @@ def chordLength(surface,param=0.0,direction='u'):
 	@type direction: str
 	'''
 	# Check surface
-	if not isSurface(surface): raise UserInputError('Object '+surface+' is not a valid surface!')
+	if not isSurface(surface): raise Exception('Object '+surface+' is not a valid surface!')
 	# Duplicate surface curve
 	curve = mc.duplicateCurve(surface+'.'+direction+'['+str(param)+']',ch=0,rn=0,local=0)
 	# Measure curve length
@@ -78,10 +78,11 @@ def closestPoint(surface,pos=(0,0,0)):
 	@type pos: tuple/list
 	'''
 	# Check surface
-	if not isSurface(surface): raise UserInputError('Object '+surface+' is not a valid surface!')
+	if not isSurface(surface): raise Exception('Object '+surface+' is not a valid surface!')
 	
-	# Get surface point world position
-	pos = OpenMaya.MPoint(pos[0],pos[1],pos[2],1.0)
+	# Get point world position
+	pos = glTools.utils.base.getPosition(pos)
+	pt = OpenMaya.MPoint(pos[0],pos[1],pos[2],1.0)
 	
 	# Get surface function set
 	surfFn = getSurfaceFn(surface)
@@ -95,8 +96,24 @@ def closestPoint(surface,pos=(0,0,0)):
 	vCoordPtr = vCoord.asDoublePtr()
 	
 	# get closest uCoord to edit point position
-	surfFn.closestPoint(pos,uCoordPtr,vCoordPtr,True,0.0001,OpenMaya.MSpace.kWorld)
+	surfFn.closestPoint(pt,uCoordPtr,vCoordPtr,True,0.0001,OpenMaya.MSpace.kWorld)
 	return (OpenMaya.MScriptUtil(uCoordPtr).asDouble(),OpenMaya.MScriptUtil(vCoordPtr).asDouble())
+
+def distToSurface(surface,pos=(0,0,0)):
+	'''
+	'''
+	# Get point world position
+	pos = glTools.utils.base.getPosition(pos)
+	
+	# Get closest point to surface
+	uv = closestPoint(surface,pos)
+	pt = mc.pointOnSurface(surface,u=uv[0],v=uv[1],p=True)
+	
+	# Get distance to surface point
+	dist = glTools.utils.mathUtils.distanceBetween(pos,pt)
+	
+	# Return Result
+	return dist
 
 def snapPtsToSurface(surface,pointList):
 	'''
@@ -106,7 +123,7 @@ def snapPtsToSurface(surface,pointList):
 	@type pointList: list
 	'''
 	# Check surface
-	if not isSurface(surface): raise UserInputError('Object '+surface+' is not a valid surface!')
+	if not isSurface(surface): raise Exception('Object '+surface+' is not a valid surface!')
 	
 	# Check points
 	pointList = mc.ls(pointList,fl=True)
@@ -140,9 +157,9 @@ def locatorSurface(surface,controlPoints=[],locatorScale=0.075,prefix=''):
 	'''
 	# Check surface
 	if not glTools.utils.surface.isSurface(surface):
-		raise UserInputError('Object '+surface+' is not a valid surface!')
+		raise Exception('Object '+surface+' is not a valid surface!')
 	if mc.objectType(surface) == 'transform':
-		surface = mc.listRelatives(surface,s=True,ni=True)[0]
+		surface = mc.listRelatives(surface,s=True,ni=True,pa=True)[0]
 	
 	# Check prefix
 	if not prefix: prefix = glTools.utils.stringUtils.stripSuffix(surface)
@@ -186,11 +203,11 @@ def surfaceArea(surface,worldSpace=True):
 	@type worldSpace: bool
 	'''
 	# Check Surface
-	if not mc.objExists(surface): raise UserInputError('Object '+surface+' does not exist!')
+	if not mc.objExists(surface): raise Exception('Object '+surface+' does not exist!')
 	if mc.objectType(surface) == 'transform':
-		surfaceShape = mc.listRelatives(surface,s=True,ni=True)[0]
+		surfaceShape = mc.listRelatives(surface,s=True,ni=True,pa=True)[0]
 		if mc.objectType(surfaceShape) != 'nurbsSurface':
-			raise UserInputError('Object '+surface+' is not a valid nurbs surface!')
+			raise Exception('Object '+surface+' is not a valid nurbs surface!')
 		surface = surfaceShape
 	
 	# Get MFnNurbsSurface
@@ -220,7 +237,7 @@ def snapToSurface(surface,obj,uValue=0.0,vValue=0.0,useClosestPoint=False,snapPi
 	@type snapPivot: bool
 	'''
 	# Check surface
-	if not isSurface(surface): raise UserInputError('Object '+surface+' is not a valid surface!!')
+	if not isSurface(surface): raise Exception('Object '+surface+' is not a valid surface!!')
 	
 	# Check uValue/vValue
 	minu = mc.getAttr(surface+'.minValueU')
@@ -233,8 +250,8 @@ def snapToSurface(surface,obj,uValue=0.0,vValue=0.0,useClosestPoint=False,snapPi
 		pos = mc.xform(obj,q=True,ws=True,rp=True)
 		(uValue,vValue) = closestPoint(surface,pos)
 	# Verify surface parameter
-	if uValue < minu or uValue > maxu: raise UserInputError('U paramater '+str(uValue)+' is not within the U parameter range for '+surface+'!!')
-	if vValue < minv or vValue > maxv: raise UserInputError('V paramater '+str(vValue)+' is not within the V parameter range for '+surface+'!!')
+	if uValue < minu or uValue > maxu: raise Exception('U paramater '+str(uValue)+' is not within the U parameter range for '+surface+'!!')
+	if vValue < minv or vValue > maxv: raise Exception('V paramater '+str(vValue)+' is not within the V parameter range for '+surface+'!!')
 	
 	# Get surface point position
 	pnt = mc.pointPosition(surface+'.uv['+str(uValue)+']['+str(vValue)+']')
@@ -244,7 +261,14 @@ def snapToSurface(surface,obj,uValue=0.0,vValue=0.0,useClosestPoint=False,snapPi
 	if snapPivot: mc.xform(obj,piv=pnt,ws=True)
 	else: mc.move(pnt[0]-piv[0],pnt[1]-piv[1],pnt[2]-piv[2],obj,r=True,ws=True)
 
-def orientToSurface(surface,obj,uValue=0.0,vValue=0.0,useClosestPoint=False,tangentUAxis='x',tangentVAxis='y',alignTo='u'):
+def orientToSurface(	surface,
+						obj,
+						uValue			= 0.0,
+						vValue			= 0.0,
+						useClosestPoint	= False,
+						tangentUAxis	= 'x',
+						tangentVAxis	= 'y',
+						alignTo			= 'u' ):
 	'''
 	Orient object to a specified point on a surface.
 	@param surface: Surface to orient object to
@@ -265,11 +289,11 @@ def orientToSurface(surface,obj,uValue=0.0,vValue=0.0,useClosestPoint=False,tang
 	@type upAxis: str
 	'''
 	# Check surface
-	if not isSurface(surface): raise UserInputError('Object '+surface+' is not a valid surface!!')
+	if not isSurface(surface): raise Exception('Object '+surface+' is not a valid surface!!')
 	# Check Obj
 	transform = ['transform','joint','ikHandle','effector']
 	if not transform.count(mc.objectType(obj)):
-		raise UserInputError('Object '+obj+' is not a valid transform!!')
+		raise Exception('Object '+obj+' is not a valid transform!!')
 	# Check uValue/vValue
 	minu = mc.getAttr(surface+'.minValueU')
 	maxu = mc.getAttr(surface+'.maxValueU')
@@ -280,11 +304,11 @@ def orientToSurface(surface,obj,uValue=0.0,vValue=0.0,useClosestPoint=False,tang
 		pos = mc.xform(obj,q=True,ws=True,rp=True)
 		(uValue,vValue) = closestPoint(surface,pos)
 	# Verify surface parameter
-	if uValue < minu or uValue > maxu: raise UserInputError('U paramater '+str(uValue)+' is not within the U parameter range for '+surface+'!!')
-	if vValue < minv or vValue > maxv: raise UserInputError('V paramater '+str(uValue)+' is not within the V parameter range for '+surface+'!!')
+	if uValue < minu or uValue > maxu: raise Exception('U paramater '+str(uValue)+' is not within the U parameter range for '+surface+'!!')
+	if vValue < minv or vValue > maxv: raise Exception('V paramater '+str(uValue)+' is not within the V parameter range for '+surface+'!!')
 	
 	# Check object
-	if not mc.objExists(obj): raise UserInputError('Object '+obj+' does not exist!!')
+	if not mc.objExists(obj): raise Exception('Object '+obj+' does not exist!!')
 	rotateOrder = mc.getAttr(obj+'.ro')
 	
 	# Get tangents at surface point
@@ -319,6 +343,10 @@ def rebuild(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,rebu
 	@param replaceOrig: Replace original surface, or create new rebuilt surface.
 	@type replaceOrig: bool
 	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
 	# Check surface
 	if not isSurface(surface):
 		raise Exception('Object "'+surface+'" is not a valid surface!')
@@ -327,8 +355,9 @@ def rebuild(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,rebu
 	if not spansU: spansU = mc.getAttr(surface+'.spansU')
 	if not spansV: spansV = mc.getAttr(surface+'.spansV')
 	
-	# -------------
+	# =============
 	# - Rebuild U -
+	# =============
 	
 	# Get V range
 	if rebuildUfirst:
@@ -370,8 +399,9 @@ def rebuild(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,rebu
 		# Loft intermediate surface
 		int_surface = mc.loft(iso_list,ch=0,u=1,c=0,ar=1,d=3,ss=1,rn=0,po=0,rsn=True)[0]
 	
-	# -------------
+	# =============
 	# - Rebuild V -
+	# =============
 	
 	# Get V range (intermediate surface)
 	if rebuildUfirst:
@@ -415,7 +445,7 @@ def rebuild(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,rebu
 	
 	# Rename rebuilt surface
 	rebuild_surface = mc.rename(rebuild_surface,surface+'_rebuild')
-	rebuild_surfaceShape = mc.listRelatives(surface,s=True,ni=True)[0]
+	rebuild_surfaceShape = mc.listRelatives(surface,s=True,ni=True,pa=True)[0]
 	mc.delete(int_surface)
 	
 	# Re-parameterize 0-1
@@ -424,8 +454,9 @@ def rebuild(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,rebu
 	# Initialize return value
 	outputShape = rebuild_surfaceShape
 	
-	# --------------------
+	# ====================
 	# - Replace Original -
+	# ====================
 	
 	if replaceOrig:
 	
@@ -446,7 +477,7 @@ def rebuild(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,rebu
 		"""
 	
 		# Check history
-		shapes = mc.listRelatives(surface,s=True,ni=True)
+		shapes = mc.listRelatives(surface,s=True,ni=True,pa=True)
 		if not shapes: raise Exception('Unable to determine shape for surface "'+surface+'"!')
 		shape = shapes[0]
 		shapeHist = mc.listHistory(shape)
@@ -457,7 +488,10 @@ def rebuild(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,rebu
 		mc.connectAttr(rebuild_surfaceShape+'.local',shape+'.create',f=True)
 		outputShape = shape
 	
-	# Return result
+	# =================
+	# - Return Result -
+	# =================
+	
 	return outputShape
 
 def rebuild_old(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,replaceOrig=False):
@@ -543,7 +577,7 @@ def rebuild_old(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,
 		rebuild_surface = mc.loft(iso_list,ch=0,u=1,c=0,ar=1,d=3,ss=1,rn=0,po=0,rsn=True)[0]
 	
 	rebuild_surface = mc.rename(rebuild_surface,surface+'_rebuild')
-	rebuild_surfaceShape = mc.listRelatives(surface,s=True,ni=True)[0]
+	rebuild_surfaceShape = mc.listRelatives(surface,s=True,ni=True,pa=True)[0]
 	mc.delete(int_surface)
 	
 	# Initialize return value
@@ -571,7 +605,7 @@ def rebuild_old(surface,spansU=0,spansV=0,fullRebuildU=False,fullRebuildV=False,
 		"""
 	
 		# Check history
-		shapes = mc.listRelatives(surface,s=True,ni=True)
+		shapes = mc.listRelatives(surface,s=True,ni=True,pa=True)
 		if not shapes: raise Exception('Unable to determine shape for surface "'+surface+'"!')
 		shape = shapes[0]
 		shapeHist = mc.listHistory(shape)
@@ -628,13 +662,13 @@ def projectToSurface(surface,targetSurface,direction='u',keepOriginal=False,pref
 	'''
 	# Check surface
 	if not mc.objExists(surface):
-		raise UserInputError('Surface "'+surface+'" does not exist!!')
+		raise Exception('Surface "'+surface+'" does not exist!!')
 	if not isSurface(surface):
-		raise UserInputError('Object "'+surface+'" is not a valid nurbs surface!!')
+		raise Exception('Object "'+surface+'" is not a valid nurbs surface!!')
 	
 	# Check target surface
 	if not mc.objExists(targetSurface):
-		raise UserInputError('Target surface "'+targetSurface+'" does not exist!!')
+		raise Exception('Target surface "'+targetSurface+'" does not exist!!')
 	
 	# Check prefix
 	if not prefix: prefix = glTools.utils.stringUtils.stripSuffix(surface)
@@ -642,7 +676,7 @@ def projectToSurface(surface,targetSurface,direction='u',keepOriginal=False,pref
 	# Check direction
 	direction = direction.upper()
 	if (direction != 'U') and (direction != 'V'):
-		raise UserInputError('Invalid surface direction specified! Must specify either "u" or "v"!!')
+		raise Exception('Invalid surface direction specified! Must specify either "u" or "v"!!')
 	
 	# Get surface information
 	spans = mc.getAttr(surface+'.spans'+direction)
@@ -760,7 +794,7 @@ def rebuildFromIsoparms(surface,spansU=0,spansV=0,degree=3,keepHistory=False):
 	@param keepHistory: Keep loft surface history
 	@type keepHistory: bool
 	'''
-	# Check surface
+	# Check Surface
 	if not mc.objExists(surface):
 		raise Exception('Surface "'+surface+'" does not exist!!')
 	if not isSurface(surface):
@@ -808,3 +842,4 @@ def rebuildFromIsoparms(surface,spansU=0,spansV=0,degree=3,keepHistory=False):
 	
 	# Return result
 	return rebuildSurface
+

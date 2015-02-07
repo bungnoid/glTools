@@ -1,13 +1,3 @@
 import attach
-import base
-import clavicle
-import fkChain
-import finger
-import foot
-import hand
-import head
-import limb
-import limbStretch
-import spine
-import twist
 import utils
+import face_tools

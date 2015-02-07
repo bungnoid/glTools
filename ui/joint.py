@@ -32,10 +32,11 @@ def jointOrientUI():
 	aimRBG = mc.radioButtonGrp('jointOrientAimRBG',nrb=3,l='Aim Method',la3=['Axis','Object','Cross'],sl=1,cc='glTools.ui.joint.jointOrientRefreshUI_aimMethod()',cw=[(1,cw1),(2,cw2),(3,cw3)])
 	
 	# Aim Axis Direction Layout
-	axisFL = mc.frameLayout('jointOrientAxisFL',l='Orientation Axis',w=(width-8),h=70,cll=0)
+	axisFL = mc.frameLayout('jointOrientAxisFL',l='Orientation Axis',w=(width-8),h=90,cll=0)
 	axisCL = mc.columnLayout(adj=True)
 	
-	primAxisRBG = mc.radioButtonGrp('jointOrientPrimAxisRBG',nrb=3,l='Primary Axis',la3=['X','Y','Z'],sl=1,cc='glTools.ui.joint.jointOrientRefreshUI_aimAxis()',cw=[(1,cw1),(2,cw2),(3,cw3),(4,cw4)])
+	primAxisPosRBG = mc.radioButtonGrp('jointOrientPrimAxisRBG',nrb=3,l='Primary Axis',la3=['X','Y','Z'],sl=1,cc='glTools.ui.joint.jointOrientRefreshUI_aimAxis()',cw=[(1,cw1),(2,cw2),(3,cw3),(4,cw4)])
+	primAxisNegRBG = mc.radioButtonGrp('jointOrientPrimAxisNegRBG',nrb=3,scl=primAxisPosRBG,l='',la3=['-X','-Y','-Z'],cc='glTools.ui.joint.jointOrientRefreshUI_aimAxis()',cw=[(1,cw1),(2,cw2),(3,cw3),(4,cw4)])
 	aimAxisRBG = mc.radioButtonGrp('jointOrientAimAxisRBG',nrb=2,l='Aim Axis',la2=['Y','Z'],sl=1,cw=[(1,cw1),(2,cw2)])
 	
 	mc.setParent('..')
@@ -113,11 +114,9 @@ def jointOrientFromUI(close=False):
 	
 	# Build Axis List
 	axisList = ['x','y','z','-x','-y','-z']
-	#axisList = [(1,0,0),(0,1,0),(0,0,1),(-1,0,0),(0,-1,0),(0,0,-1)]
 	
 	# Build UpAxis List
 	upAxisList = [('y','z'),('x','z'),('x','y')]
-	#upAxisList = [((0,1,0),(0,0,1)),((1,0,0),(0,0,1)),((1,0,0),(0,1,0))]
 	
 	# Build Axis Dictionary
 	axisDict = {'x':(1,0,0),'y':(0,1,0),'z':(0,0,1),'-x':(-1,0,0),'-y':(0,-1,0),'-z':(0,0,-1)}
@@ -256,8 +255,10 @@ def jointOrientRefreshUI_aimAxis():
 	'''
 	Refresh Aim Axis list based on Primary Axis selection.
 	'''
+	# Get Orient Axis Label Index
 	labelIndex = mc.radioButtonGrp('jointOrientPrimAxisRBG',q=True,sl=True)
-	labelArray = [('Y','Z'),('X','Z'),('X','Y')]
+	if not labelIndex: labelIndex = mc.radioButtonGrp('jointOrientPrimAxisNegRBG',q=True,sl=True) + 3
+	labelArray = [('Y','Z'),('X','Z'),('X','Y')]*2
 	mc.radioButtonGrp('jointOrientAimAxisRBG',e=True,la2=labelArray[labelIndex-1])
 
 def jointOrientRotateOrient(rx,ry,rz):

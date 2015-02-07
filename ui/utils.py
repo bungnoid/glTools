@@ -4,22 +4,129 @@ import maya.mel as mm
 import glTools.utils.base
 import glTools.utils.curve
 import glTools.utils.mesh
+import glTools.utils.namespace
+import glTools.utils.osUtils
 import glTools.utils.stringUtils
 import glTools.utils.surface
+
+import re
 
 class UserInputError(Exception): pass
 class UIError(Exception): pass
 
-# --------------
+# ==============
 # - Text Field -
-# --------------
+# ==============
+
+def loadFilePath(textField,fileFilter=None,caption='Load File',startDir=None):
+	'''
+	Select a file path to load into a specified textField.
+	@param textField: TextField UI object to load file path to
+	@type textField: str
+	@param fileFilter: File filter to apply to the file selection UI
+	@type fileFilter: str
+	@param caption: File selection UI caption string
+	@type caption: str
+	@param startDir: Directory to start browsing from. In None, use the default or last selected directory.
+	@type startDir: str
+	'''
+	# Get File Path
+	filePath = mc.fileDialog2(	fileFilter=fileFilter,
+								dialogStyle=2,
+								fileMode=1,
+								caption=caption,
+								okCaption='Load',
+								startingDirectory=startDir )
+	
+	# Check File Path
+	if not filePath:
+		print('Invalid file path!')
+		return
+	
+	# Load File Path to TextField
+	if mc.textField(textField,q=True,ex=True):
+		mc.textField(textField,e=True,text=filePath[0])
+	elif mc.textFieldGrp(textField,q=True,ex=True):
+		mc.textFieldGrp(textField,e=True,text=filePath[0])
+	elif mc.textFieldButtonGrp(textField,q=True,ex=True):
+		mc.textFieldButtonGrp(textField,e=True,text=filePath[0])
+	else:
+		print('UI element "" is not a valid textField, textFieldGrp or textFieldButtonGrp!')
+		return
+	
+	# Return Result
+	return filePath[0]
+
+def loadDirectoryPath(textField,caption='Load Directory',startDir=None):
+	'''
+	Select a file path to load into a specified textField.
+	@param textField: TextField UI object to load file path to
+	@type textField: str
+	@param caption: File selection UI caption string
+	@type caption: str
+	@param startDir: Directory to start browsing from. In None, use the default or last selected directory.
+	@type startDir: str
+	'''
+	# Get File Path
+	dirPath = mc.fileDialog2(	dialogStyle=2,
+								fileMode=3,
+								caption=caption,
+								okCaption='Load',
+								startingDirectory=startDir )
+	
+	# Check File Path
+	if not dirPath:
+		print('Invalid directory path!')
+		return
+	
+	# Load File Path to TextField
+	if mc.textField(textField,q=True,ex=True):
+		mc.textField(textField,e=True,text=dirPath[0])
+	elif mc.textFieldGrp(textField,q=True,ex=True):
+		mc.textFieldGrp(textField,e=True,text=dirPath[0])
+	elif mc.textFieldButtonGrp(textField,q=True,ex=True):
+		mc.textFieldButtonGrp(textField,e=True,text=dirPath[0])
+	else:
+		print('UI element "'+textField+'" is of type "'+mc.objectTypeUI(textField)+'"! Expected textField, textFieldGrp or textFieldButtonGrp.')
+		return
+	
+	# Return Result
+	return dirPath[0]
+
+def importFolderBrowser(textField): # ,caption='Import',startingDirectory=None):
+	'''
+	Set the input directory from file browser selection
+	'''
+	mm.eval('global proc importGetFolder(string $textField,string $path,string $type){ textFieldButtonGrp -e -text $path $textField; deleteUI projectViewerWindow; }')
+	mm.eval('fileBrowser "importGetFolder '+textField+'" Import "" 4')
+	
+	#dirPath = mc.fileDialog2(dialogStyle=2,fileMode=3,caption='Load Scenegraph XML',okCaption='Load',startingDirectory=startingDirectory)
 
 def exportFolderBrowser(textField):
 	'''
 	Set the output directory from file browser selection
 	'''
-	mm.eval('global proc exportGetFolder(string $textField,string $path,string $type){ textFieldButtonGrp -e -text $path $textField; deleteUI projectViewerWindow; }')
+	mm.eval('global proc exportGetFolder(string $textField,string $path,string $type){ textFieldButtonGrp -e -text $path $textField; /*deleteUI projectViewerWindow;*/ }')
 	mm.eval('fileBrowser "exportGetFolder '+textField+'" Export "" 4')
+
+def loadNsSel(textField,topOnly=True):
+	'''
+	Load selected namespace into UI text field
+	@param textField: TextField UI object to load namespace selection into
+	@type textField: str
+	@param topOnly: Return the top level namespace only.
+	@type topOnly: bool
+	'''
+	# Get Selection
+	sel = mc.ls(sl=True)
+	if not sel: return
+	
+	# Get Selected Namespace
+	NS = ''
+	NS = glTools.utils.namespace.getNS(sel[0],topOnly)
+	
+	# Update UI
+	mc.textFieldButtonGrp(textField,e=True,text=NS)
 
 def loadObjectSel(textField,prefixTextField=''):
 	'''
@@ -104,7 +211,7 @@ def loadSurfaceSel(textField,prefixTextField=''):
 def loadMeshSel(textField,prefixTextField=''):
 	'''
 	Load selected curve into UI text field
-	@param textField: TextField UI object to load curve selection into
+	@param textField: TextField UI object to load mesh selection into
 	@type textField: str
 	@param prefixTextField: TextField UI object to load curve name prefix into
 	@type prefixTextField: str
@@ -122,16 +229,16 @@ def loadMeshSel(textField,prefixTextField=''):
 			prefix = glTools.utils.stringUtils.stripSuffix(sel[0])
 			mc.textFieldGrp(prefixTextField,e=True,text=prefix)
 
-def loadChannelBoxSel(textField):
+def loadChannelBoxSel(textField,fullName=True):
 	'''
 	Load selected channel into UI text field
-	@param textField: TextField UI object to load curve selection into
+	@param textField: TextField UI object to load channelbox selection into
 	@type textField: str
-	@param prefixTextField: TextField UI object to load curve name prefix into
-	@type prefixTextField: str
+	@param fullName: Use full name of attribute (node.attribute)
+	@type fullName: bool
 	'''
 	# Get channelBox
-	channelBox = 'MayaWindow|mayaMainWindowForm|formLayout3|formLayout11|formLayout32|formLayout33|ChannelsLayersPaneLayout|formLayout36|menuBarLayout1|frameLayout1|mainChannelBox'
+	channelBox = 'mainChannelBox'
 	
 	# Check main object channels
 	nodeList = mc.channelBox(channelBox,q=True,mol=True)
@@ -155,16 +262,14 @@ def loadChannelBoxSel(textField):
 		return
 	
 	# Update UI
-	if mc.textField(textField,q=True,ex=True):
-		mc.textField(textField,e=True,text=str(nodeList[0]+'.'+channelList[0]))
-	if mc.textFieldGrp(textField,q=True,ex=True):
-		mc.textFieldGrp(textField,e=True,text=str(nodeList[0]+'.'+channelList[0]))
-	if mc.textFieldButtonGrp(textField,q=True,ex=True):
-		mc.textFieldButtonGrp(textField,e=True,text=str(nodeList[0]+'.'+channelList[0]))
+	attr = ''
+	if fullName: attr += str(nodeList[0]+'.')
+	attr += str(channelList[0])
+	mc.textFieldButtonGrp(textField,e=True,text=attr)
 
-# --------------------
+# ====================
 # - Text Scroll List -
-# --------------------
+# ====================
 
 def copyTSLselToTSL(sourceTSL,targetTSL,removeFromSource=False,replaceTargetContents=False):
 	'''
@@ -248,20 +353,50 @@ def removeFromTSL(TSL):
 	listItems.reverse()
 	mc.textScrollList(TSL,e=True,rii=listItems)
 
-def selectFromTSL(TSL):
+def selectFromTSL(TSL,mode='replace',safeFail=True):
 	'''
-	Select the hilited items from the specified textScrollList
+	Select (replace mode) the hilited items from the specified textScrollList
 	@param TSL: TextScrollList UI object to remove items from
 	@type TSL: str
+	@param mode: Selection mode. Accepted values are "add", "replace", "toggle" and "remove"
+	@type mode: str
+	@param safeFail: Print safe message if item not found. Else, raise Exception.
+	@type safeFail: bool
 	'''
+	# Check Mode
+	if not mode in ['add','replace','toggle','remove']:
+		raise Exception('Invalid selection mode! ("'+mode+'")')
+	
+	# Get Items to Select
 	listItems = mc.textScrollList(TSL,q=True,si=True)
 	if not listItems: return
 	
-	for item in listItems:
-		if not mc.objExists(item):
-			raise Exception('Object "'+item+'" does not exist!')
+	# Clear Selection
+	if mode.lower() == 'replace': mc.select(cl=True)
 	
-	mc.select(listItems)
+	# Select Items
+	for item in listItems:
+		
+		# Check Object Exists
+		if not mc.objExists(item):
+			
+			# Check Safe Fail
+			if safeFail:
+				print('Object "'+item+'" does not exist! Skipping...')
+				continue
+			else:
+				raise Exception('Object "'+item+'" does not exist!')
+		
+		# Add Item to Selection
+		if (mode == 'add') or (mode == 'replace'):
+			mc.select(listItems,add=True,noExpand=True)
+		# Toggle Item Selection
+		if (mode == 'toggle'):
+			mc.select(listItems,tgl=True,noExpand=True)
+		# Remove Item Selection
+		if (mode == 'remove'):
+			mc.select(listItems,d=True,noExpand=True)
+		
 
 def moveToTSLPosition(TSL,index):
 	'''
@@ -363,10 +498,54 @@ def moveDownTSLPosition(TSL):
 	mc.textScrollList(TSL,e=True,da=True)
 	mc.textScrollList(TSL,e=True,sii=listIndex)
 	mc.textScrollList(TSL,e=True,shi=listIndex[0])
+
+def loadFileSelection(TSL,fileFilter='*.*',startDir=None,caption='Load Files'):
+	'''
+	'''
+	# Select Files
+	fileList = mc.fileDialog2(	fileFilter=fileFilter,
+								dialogStyle=2,
+								fileMode=4,
+								caption=caption,
+								okCaption='Load',
+								startingDirectory=startDir )
 	
-# -------------
+	# Add File Selection
+	if fileList:
+		for item in fileList:
+			mc.textScrollList(TSL,e=True,a=item)
+
+def loadFileList(TSL,path,filesOnly=False,filterStr='',sort=False):
+	'''
+	Load the file list of a specified directory path to a textScrollList
+	@param TSL: TextScrollList UI object to load file list into.
+	@type TSL: str
+	@param path: The directory path to get the file list from.
+	@type path: str
+	@param filesOnly: List files only (excludes directories).
+	@type filesOnly: bool
+	@param filterStr: Filter string for file name match.
+	@type filterStr: str
+	@param sort: Alpha sort list.
+	@type sort: bool
+	'''
+	# Get File List
+	fileList = glTools.utils.osUtils.getFileList(path,filesOnly=filesOnly)
+	
+	# Filter (regex)
+	if filterStr:
+		reFilter = re.compile(filterStr)
+		fileList = filter(reFilter.search, fileList)
+	
+	# Sort
+	if sort: fileList.sort()
+	
+	# Add File List to textScrollList
+	addToTSL(TSL,fileList)
+	
+# =============
 # - Check Box -
-# -------------
+# =============
 	
 def checkBoxToggleLayout(CBG,layout,invert=False):
 	'''
@@ -416,9 +595,9 @@ def checkBoxToggleControl(CBG,control,invert=False):
 	# Toggle Layout
 	mc.control(control,e=True,en=state)
 
-# --------------------
+# ====================
 # - Option Menu List -
-# --------------------
+# ====================
 
 def setOptionMenuList(OMG,itemList,add=False):
 	'''
@@ -447,9 +626,9 @@ def setOptionMenuList(OMG,itemList,add=False):
 		for item in exItemList:
 			mc.deleteUI(item)
 			
-# ---------------------
+# =====================
 # - Float Field Group -
-# ---------------------
+# =====================
 
 def setPointValue(FFG,point=''):
 	'''
@@ -475,4 +654,78 @@ def setPointValue(FFG,point=''):
 	# Set float field values
 	mc.floatFieldGrp(FFG,e=True,v1=pos[0],v2=pos[1],v3=pos[2])
 	
+# =============
+# - Custom UI -
+# =============
+
+def displayListWindow(itemList,title,enableSelect=False):
+	'''
+	Create a basic list selection window.
+	@param itemList: Item list to display in window
+	@type itemList: list
+	@param title: Window title string
+	@type title: str
+	'''
+	# Check itemList
+	if not itemList:
+		mc.confirmDialog(t=title,m='No items to display!',ma='center',b='Close')
+		return
 	
+	# Window
+	window = 'displayListWindowUI'
+	if mc.window(window,q=True,ex=True): mc.deleteUI(window)
+	window = mc.window(window,t=title,s=True)
+	
+	# Layout
+	FL = mc.formLayout(numberOfDivisions=100)
+	
+	# ===============
+	# - UI Elements -
+	# ===============
+	
+	# TextScrollList
+	TSL = mc.textScrollList('displayListWindowTSL',allowMultiSelection=True)
+	for item in itemList: mc.textScrollList(TSL,e=True,a=item)
+	if enableSelect: mc.textScrollList(TSL,e=True,sc='glTools.ui.utils.selectFromTSL("'+TSL+'")')
+	
+	# Close Button
+	closeB = mc.button('displayListWindowB',l='Close',c='mc.deleteUI("'+window+'")')
+	
+	# Form Layout
+	mc.formLayout(FL,e=True,af=[(TSL,'top',5),(TSL,'left',5),(TSL,'right',5)])
+	mc.formLayout(FL,e=True,af=[(closeB,'bottom',5),(closeB,'left',5),(closeB,'right',5)])
+	mc.formLayout(FL,e=True,ac=[(TSL,'bottom',5,closeB)])
+	
+	# Display Window
+	mc.showWindow(window)
+
+def displayMessageWindow(msg,title):
+	'''
+	Create a basic message/report window.
+	@param msg: Message string to display in window.
+	@type msg: str
+	@param title: Window title string
+	@type title: str
+	'''
+	# Check message
+	if not msg: return
+	
+	# Window
+	window = 'messageWindowUI'
+	if mc.window(window,q=True,ex=True): mc.deleteUI(window)
+	window = mc.window(window,t=title,s=True)
+	
+	# Layout
+	FL = mc.formLayout(numberOfDivisions=100)
+	
+	# UI Elements
+	reportSF = mc.scrollField('messageWindowSF',editable=False,wordWrap=True,text=msg)
+	closeB = mc.button('messageWindowB',l='Close',c='mc.deleteUI("'+window+'")')
+	
+	# Form Layout
+	mc.formLayout(FL,e=True,af=[(reportSF,'top',5),(reportSF,'left',5),(reportSF,'right',5)])
+	mc.formLayout(FL,e=True,af=[(closeB,'bottom',5),(closeB,'left',5),(closeB,'right',5)])
+	mc.formLayout(FL,e=True,ac=[(reportSF,'bottom',5,closeB)])
+	
+	# Display Window
+	mc.showWindow(window)

@@ -1,10 +1,10 @@
 import maya.cmds as mc
 import maya.OpenMaya as OpenMaya
+
 import glTools.utils.surface
 import glTools.utils.mathUtils
-import glTools.common.namingConvention
-
-class UserInputError( Exception ): pass
+import glTools.utils.stringUtils
+import glTools.tools.namingConvention
 
 def add(surface,targetList,surfacePointsNode='',alignTo='u',rotate=True,tangentUAxis='x',tangentVAxis='y',prefix=''):
 	'''
@@ -27,21 +27,20 @@ def add(surface,targetList,surfacePointsNode='',alignTo='u',rotate=True,tangentU
 	'''
 	# Check surface
 	if not glTools.utils.surface.isSurface(surface):
-		raise UserInputError('Object "" is not a valid nurbs surface!!')
+		raise Exception('Object "" is not a valid nurbs surface!!')
 	
 	# Check prefix
-	nameUtil = glTools.common.namingConvention.NamingConvention()
-	if not prefix: prefix = nameUtil.stripSuffix(surface)
+	if not prefix: prefix = glTools.utils.stringUtils.stripSuffix(surface)
 	
 	# Check targetList
-	if not targetList: raise UserInputError('Invalid target list!!')
+	if not targetList: raise Exception('Invalid target list!!')
 	
 	# Check surfacePoints node
 	if not surfacePointsNode:
-		surfacePointsNode = nameUtil.appendName(prefix,nameUtil.node['surfacePoints'],stripNameSuffix=False)
+		surfacePointsNode = prefix+'surfacePoints'
 	if mc.objExists(surfacePointsNode):
 		if not mc.objectType(surfacePointsNode) == 'surfacePoints':
-			raise UserInputError('Object "'+surfacePointsNode+'" is not a valid surfacePoints node!!')
+			raise Exception('Object "'+surfacePointsNode+'" is not a valid surfacePoints node!!')
 	else:
 		# Create new surface points node
 		surfacePointsNode = mc.createNode('surfacePoints',n=surfacePointsNode)
@@ -63,15 +62,14 @@ def add(surface,targetList,surfacePointsNode='',alignTo='u',rotate=True,tangentU
 	for i in range(len(targetList)):
 		
 		# Get current input index
-		ind = str(nextIndex + i)
-		if int(ind)<10: ind = '0'+ind
+		ind = glTools.utils.stringUtils.stringIndex(i+1,2)
 		
 		# Initialize UV parameter variable
 		uv = (0.0,0.0)
 		pos = (0.0,0.0,0.0)
 		# Get target surface point for current target
 		if type(targetList[i])==str or type(targetList[i])==unicode:
-			if not mc.objExists(targetList[i]): raise UserInputError('Target list object "'+targetList[i]+'" does not exist')
+			if not mc.objExists(targetList[i]): raise Exception('Target list object "'+targetList[i]+'" does not exist')
 			pos = mc.pointPosition(targetList[i])
 			uv = glTools.utils.surface.closestPoint(surface,pos)
 		elif type(targetList[i])==tuple or type(targetList[i])==list:
@@ -101,7 +99,7 @@ def add(surface,targetList,surfacePointsNode='',alignTo='u',rotate=True,tangentU
 		elif paramV > (maxV-0.001): paramV = maxV
 		
 		# Create constraint transform
-		transform = nameUtil.appendName(prefix,nameUtil.subPart['surfacePoint']+ind+nameUtil.delineator+nameUtil.node['transform'],stripNameSuffix=False)
+		transform = prefix+'_surfacePoint'+ind+'_transform'
 		transform = mc.createNode('transform',n=transform)
 		transformList.append(transform)
 		

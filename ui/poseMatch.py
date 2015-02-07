@@ -147,7 +147,7 @@ def evalOrderUIbuildHierarchy():
 	if not rootList: raise UserInputError('Specify a hierarchy root!')
 	
 	# Build hierarchy list
-	gEvalOrder = glTools.common.EvaluationOrder(rootList[0],debug=True)
+	gEvalOrder = glTools.tools.evaluationOrder.EvaluationOrder(rootList[0],debug=True)
 	
 	# Display evaluation order list in UI
 	evalOrderUIrefreshList()
@@ -325,7 +325,7 @@ def setTwinMatchAttrsFromUI():
 	replace = str(mc.textFieldGrp('matchRulesReplaceTFG',q=True,text=True))
 	
 	# Set match rules attributes
-	glTools.common.match.Match().setTwinMatchAttrs(sel,pivotObj,axis,mode,search,replace)
+	glTools.tools.match.Match().setTwinMatchAttrs(sel,pivotObj,axis,mode,search,replace)
 	
 def setSelfPivotAttrsFromUI():
 	'''
@@ -347,4 +347,4 @@ def setSelfPivotAttrsFromUI():
 	mode = mc.optionMenuGrp('matchRulesModeOMG',q=True,sl=True) - 1
 	
 	# Set match rules attributes
-	glTools.common.match.Match().setSelfPivotAttrs(sel,axis,mode)
+	glTools.tools.match.Match().setSelfPivotAttrs(sel,axis,mode)

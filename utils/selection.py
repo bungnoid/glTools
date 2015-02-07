@@ -3,6 +3,23 @@ import maya.OpenMaya as OpenMaya
 import maya.OpenMayaUI as OpenMayaUI
 
 import base
+import glTools.utils.namespace
+
+def numSelectionElements(selection):
+	'''
+	Return the number of selection elements are specified by the input selection list
+	@param selection: Selection list to return the element count for.
+	@type selection: list or str
+	'''
+	# Initialize function wrappers
+	selectionList = OpenMaya.MSelectionList()
+	
+	# Build selection list
+	if type(selection) == str or type(selection) == unicode: selection = [str(selection)]
+	[selectionList.add(i) for i in selection]
+	
+	# Return Result
+	return selectionList.length()
 
 def getSelectionElement(selection,element=0):
 	'''
@@ -19,12 +36,12 @@ def getSelectionElement(selection,element=0):
 	selectionObj = OpenMaya.MObject()
 	
 	# Build selection list
-	if type(selection) == 'str': selection = [selection]
+	if type(selection) == str or type(selection) == unicode: selection = [str(selection)]
 	[selectionList.add(i) for i in selection]
 	
 	# Check length
 	if element >= selectionList.length():
-		raise UserInputError('Element value ('+str(element)+') out of range!')
+		raise Exception('Element value ('+str(element)+') out of range!')
 	
 	# Get selection elements
 	selectionList.getDagPath(element,selectionPath,selectionObj)
@@ -121,3 +138,160 @@ def selectFromViewport():
 	
 	# Select from screen
 	OpenMaya.MGlobal.selectFromScreen(0,0,viewPort.portWidth(),viewPort.portHeight(),OpenMaya.MGlobal.kReplaceList,OpenMaya.MGlobal.kWireframeSelectMethod)
+
+def selectByAttr(attr=''):
+	'''
+	Select nodes with the specified attribute
+	@param attr: Attribute to use a for the selection filter
+	@type attr: str
+	'''
+	# Check Attribute
+	if not attr:
+	
+		result = mc.promptDialog(	title='Select By Attribute',
+									message='Attribute:',
+									button=['Select','Cancel'],
+									defaultButton='Select',
+									cancelButton='Cancel',
+									dismissString='Cancel'	)
+		
+		if result == 'Select':
+			attr = mc.promptDialog(q=True,text=True)	
+		
+		# Check Attribute
+		if not attr: return
+	
+	# Select By Attribute
+	sel = mc.ls('*.'+attr,o=True)
+	
+	# Return Result
+	return sel
+
+def componentListByObject(componentList=[]):
+	'''
+	Return a list of component lists.
+	Each components list is grouped by parent object.
+	@param componentList: Flat component list that will be grouped by object
+	@type componentList: list
+	'''
+	# Check Component List - If empty, get user selection
+	if not componentList: componentList = mc.ls(sl=1,fl=1)
+	if not componentList: return []
+	
+	# Initialize function wrappers
+	selList = OpenMaya.MSelectionList()
+	objPath = OpenMaya.MDagPath()
+	compObj = OpenMaya.MObject()
+	
+	# Build Selection List
+	if type(componentList) == str or type(componentList) == unicode: componentList = [str(componentList)]
+	[selList.add(i) for i in componentList]
+	
+	# For Each Object
+	objCompList = []
+	for i in range(selList.length()):
+		
+		# Get Object Selection
+		selList.getDagPath(i,objPath,compObj)
+		compList = OpenMaya.MSelectionList()
+		compList.clear()
+		compList.add(objPath,compObj)
+		
+		# Get Component Selection List
+		compStrList = []
+		compList.getSelectionStrings(compStrList)
+		
+		# Append to Output List
+		objCompList.append(compStrList)
+	
+	# Return Result
+	return objCompList
+
+def componentDictByObject(componentList=[]):
+	'''
+	Return a dictionary of component lists, using the components object as a key.
+	@param componentList: Flat component list that will be grouped by object
+	@type componentList: list
+	'''
+	# Check Component List - If empty, get user selection
+	if not componentList: componentList = mc.ls(sl=1,fl=1)
+	if not componentList: return []
+	
+	# Initialize function wrappers
+	selList = OpenMaya.MSelectionList()
+	objPath = OpenMaya.MDagPath()
+	compObj = OpenMaya.MObject()
+	
+	# Build Selection List
+	if type(componentList) == str or type(componentList) == unicode: componentList = [str(componentList)]
+	[selList.add(i) for i in componentList]
+	
+	# For Each Object
+	objCompDict = {}
+	for i in range(selList.length()):
+		
+		# Get Object Selection
+		selList.getDagPath(i,objPath,compObj)
+		compList = OpenMaya.MSelectionList()
+		compList.clear()
+		compList.add(objPath,compObj)
+		
+		# Get Component Selection List
+		compStrList = []
+		compList.getSelectionStrings(compStrList)
+		
+		# Append to Output List
+		objCompDict[objPath.name()] = compStrList
+	
+	# Return Result
+	return objCompList
+
+def mirrorSelection(sel=[],mirrorPrefix=[('lf','rt')],addToSel=False):
+	'''
+	Mirror selection
+	@param sel: User defined selection to mirror. If empty, use current active selection.
+	@type sel: list
+	@param mirrorPrefix: List of side prefix pairs.
+	@type mirrorPrefix: list
+	@param addToSel: Add to or replace current selection.
+	@type addToSel: bool
+	'''
+	# Check Selection
+	if not sel: sel = mc.ls(sl=True)
+	
+	# Get Mirror Selection
+	mSel = []
+	for obj in sel:
+		
+		# Get Namespace and Short Name
+		NS = glTools.utils.namespace.getNS(obj)
+		if NS: NS += ':'
+		objSN = glTools.utils.namespace.stripNS(obj)
+		
+		# Get Side Prefix
+		side = objSN.split('_')[0]
+		
+		# Get Mirror
+		mObj = objSN
+		for mPrefix in mirrorPrefix:
+			if side == mPrefix[0]:
+				mObj = objSN.replace(mPrefix[0],mPrefix[1])
+				break
+			if side == mPrefix[1]:
+				mObj = objSN.replace(mPrefix[1],mPrefix[0])
+				break
+		
+		# Check Mirror Object
+		if not mc.objExists(NS+mObj):
+			print ('Mirror object "'+NS+mObj+'" does not exist!')
+			continue
+		
+		# Add to Mirror Selection
+		mSel.append(NS+mObj)
+		
+	# Set Selection
+	if addToSel: mSel = sel + mSel
+	mc.select(mSel)
+	
+	# Return Result
+	return mSel

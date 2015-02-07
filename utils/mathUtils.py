@@ -1,6 +1,18 @@
 import maya.cmds as mc
 import maya.OpenMaya as OpenMaya
 
+def isEqual(x,y,tolerance=0.00001):
+	'''
+	Check if 2 float values are equal within a given tolerance
+	@param x: First float value to compare
+	@type x: float
+	@param y: First float value to compare
+	@type y: float
+	@param tolerance: Comparison tolerance
+	@type tolerance: float
+	'''
+	return abs(x-y) < tolerance
+
 def mag(vector=(0,0,0)):
 	'''
 	Returns the magnitude (length) of a specified vector.
@@ -81,6 +93,31 @@ def averagePosition(pos1=(0.0,0.0,0.0),pos2=(0.0,0.0,0.0),weight=0.5):
 	'''
 	return (pos1[0]+((pos2[0]-pos1[0])*weight),pos1[1]+((pos2[1]-pos1[1])*weight),pos1[2]+((pos2[2]-pos1[2])*weight))
 
+def closestPointOnLine(pt,lineA,lineB,clampSegment=False):
+	'''
+	Find the closest point (to a given position) on the line specified by the incoming arguments
+	@param pt: Find the closest point to this position
+	@type pt: list
+	@param lineA: Start point of line
+	@type lineA: list
+	@param lineB: End point of line
+	@type lineB: list
+	'''
+	# Get Vector Offsets
+	ptOffset = offsetVector(lineA,pt)
+	lineOffset = offsetVector(lineA,lineB)
+	
+	# Vector Comparison
+	dot = dotProduct(ptOffset,lineOffset)
+	
+	# Clamp Segment
+	if clampSegment:
+		if dot < 0.0: return lineA
+		if dot > 1.0: return lineB
+	
+	# Project Vector
+	return [lineA[0]+(lineOffset[0]*dot),lineA[1]+(lineOffset[1]*dot),lineA[2]+(lineOffset[2]*dot)]
+
 def smoothStep(value,rangeStart=0.0,rangeEnd=1.0,smooth=1.0):
 	'''
 	Interpolate between 2 float values using hermite interpolation.
@@ -116,26 +153,30 @@ def distributeValue(samples,spacing=1.0,rangeStart=0.0,rangeEnd=1.0):
 	@param rangeEnd: Maximum value in the sample range
 	@type rangeEnd: float
 	'''
-	# Get value range
+	# Get Value Range
 	vList = [rangeStart]
 	vDist = abs(rangeEnd - rangeStart)
 	unit = 1.0
-	# Find the unit distance
+	
+	# Find the Unit Distance
 	factor = 1.0
 	for i in range(samples-2):
 		unit += factor * spacing
 		factor *= spacing
 	unit = vDist/unit
 	totalUnit = unit
-        # Build sample list
+	
+	# Build Sample List
 	for i in range(samples-2):
 		multFactor = totalUnit/vDist
 		vList.append(rangeStart-((rangeStart - rangeEnd) * multFactor))
 		unit *= spacing
 		totalUnit += unit
-	# Append final sample value
+	
+	# Append Final Sample
 	vList.append(rangeEnd)
-	# Return result
+	
+	# Return Result
 	return vList
 
 def inverseDistanceWeight1D(valueArray,sampleValue,valueDomain=(0,1),cycleValue=False):
@@ -191,7 +232,7 @@ def inverseDistanceWeight3D(pointArray,samplePoint):
 	@param samplePoint: The sample point to calculate weights for
 	@type samplePoint: tuple or list
 	'''
-	# Initialize method varialbles
+	# Initialize Method Variables
 	distArray = []
 	totalInvDist = 0.0
 	
@@ -200,18 +241,18 @@ def inverseDistanceWeight3D(pointArray,samplePoint):
 	
 	# Calculate inverse distance weight
 	for i in range(len(pointArray)):
-		# Calculate distance
-		dist = distanceBetween(samplePoint - pointArray[v])
+		# Calculate Distance
+		dist = distanceBetween(samplePoint, pointArray[i])
 		
-		# Check zero distance
+		# Check Zero Distance
 		if dist < 0.00001: dist = 0.00001
 		
 		# Append distance
 		distArray.append(dist)
 		totalInvDist += 1.0/dist
 	
-	# Normalize value weights
+	# Normalize Value Weights
 	wtArray = [(1.0/d)/totalInvDist for d in distArray]
 	
-	# Return result
+	# Return Result
 	return wtArray

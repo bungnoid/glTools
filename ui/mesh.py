@@ -3,7 +3,6 @@ import glTools.ui.utils
 import glTools.utils.base
 import glTools.utils.mesh
 
-class UserInputError(Exception): pass
 class UIError(Exception): pass
 
 # Global point list
@@ -127,7 +126,7 @@ def snapToMeshUI():
 	# UI Elements
 	#---
 	
-	# Surface
+	# Mesh
 	meshTFB = mc.textFieldButtonGrp('snapToMeshTFB',label='Target Mesh',text='',buttonLabel='Load Selected')
 	
 	# Orient
@@ -196,11 +195,12 @@ def snapToMeshFromUI(close=False):
 	# Window
 	window = 'snapToMeshUI'
 	if not mc.window(window,q=True,ex=1): raise UIError('SnapToSurface UI does not exist!!')
+	
 	# Get UI data
 	mesh = mc.textFieldGrp('snapToMeshTFB',q=True,text=True)
-	# Check surface
 	if not glTools.utils.mesh.isMesh(mesh):
-		raise UserInputError('Object "'+mesh+'" is not a valid mesh!!')
+		raise Exception('Object "'+mesh+'" is not a valid mesh!!')
+	
 	# Orient
 	orient = mc.checkBoxGrp('snapToMeshOrientCBG',q=True,v1=True)
 	# Orient Options
@@ -225,6 +225,58 @@ def snapToMeshFromUI(close=False):
 	
 	# Cleanup
 	if close: mc.deleteUI(window)
+
+def snapToClosestVertexUI():
+	'''
+	UI for snapToClosestVertex()
+	'''
+	# Window
+	window = 'snapToClosestVtxUI'
+	if mc.window(window,q=True,ex=1): mc.deleteUI(window)
+	window = mc.window(window,t='Snap To Closest Vertex')
+	
+	# Layout
+	FL = mc.formLayout(numberOfDivisions=100)
+	
+	# ===============
+	# - UI Elements -
+	# ===============
+	
+	# Mesh
+	meshTFB = mc.textFieldButtonGrp('snapToMeshVtxTFB',label='Target Mesh',text='',buttonLabel='Load Selected')
+	
+	# UI callback commands
+	mc.textFieldButtonGrp(meshTFB,e=True,bc='glTools.ui.utils.loadMeshSel("'+meshTFB+'")')
+	
+	# Buttons
+	snapB = mc.button('snapToMeshSnapB',l='Snap To Vertex',c='glTools.ui.mesh.snapToClosestVertexFromUI(False)')
+	cancelB = mc.button('snapToMeshCancelB',l='Cancel',c='mc.deleteUI("'+window+'")')
+	
+	# Form Layout - MAIN
+	mc.formLayout(FL,e=True,af=[(meshTFB,'top',5),(meshTFB,'left',5),(meshTFB,'right',5)])
+	mc.formLayout(FL,e=True,ac=[(snapB,'bottom',5,cancelB)],af=[(snapB,'left',5),(snapB,'right',5)])
+	mc.formLayout(FL,e=True,af=[(cancelB,'left',5),(cancelB,'right',5),(cancelB,'bottom',5)])
+	
+	# Show Window
+	mc.showWindow(window)
+
+def snapToClosestVertexFromUI(close=False):
+	'''
+	'''
+	# Window
+	window = 'snapToClosestVtxUI'
+	if not mc.window(window,q=True,ex=1):
+		raise UIError('SnapToClosestVertex UI does not exist!!')
+	
+	# Get UI data
+	mesh = mc.textFieldGrp('snapToMeshVtxTFB',q=True,text=True)
+	
+	for i in mc.ls(sl=1,fl=1):
+		#pt = mc.pointPosition(i)
+		pt = glTools.utils.base.getPosition(i)
+		vtx = glTools.utils.mesh.closestVertex(mesh,pt)
+		pos = mc.pointPosition(mesh+'.vtx['+str(vtx)+']')
+		mc.move(pos[0],pos[1],pos[2],i,ws=True,a=True)
 
 def attachToMeshUI():
 	'''
@@ -308,7 +360,7 @@ def attachToMeshFromUI(close=False):
 	mesh = mc.textFieldGrp('attachToMeshTFB',q=True,text=True)
 	# Check surface
 	if not glTools.utils.mesh.isMesh(mesh):
-		raise UserInputError('Object "'+surface+'" is not a valid nurbs surface!!')
+		raise Exception('Object "'+surface+'" is not a valid nurbs surface!!')
 	# Transform
 	obj = mc.textFieldGrp('attachToMeshTransformTFB',q=True,text=True)
 	# Prefix

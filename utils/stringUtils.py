@@ -9,13 +9,13 @@ def stripSuffix(name,delineator='_'):
 	@param delineator: String delineator to split the string name with. If default will inherit the class delineator string.
 	@type delineator: str
 	'''
-	# Check for delineator in name
+	# Check for Delineator in Name
 	if not name.count(delineator): return name
-	# Determine name suffix
+	# Determine Suffix
 	suffix = name.split(delineator)[-1]
-	# Remove suffix
+	# Remove Suffix
 	result = name.replace(delineator+suffix,'')
-	# Return result
+	# Return Result
 	return result
 		
 def stringIndex(index,padding=2):
@@ -26,11 +26,11 @@ def stringIndex(index,padding=2):
 	@param padding: The number of characters for the index string
 	@type padding: int
 	'''
-	# Convert to string
+	# Convert to String
 	strInd = str(index)
-	# Prepend padding
+	# Prepend Padding
 	for i in range(padding-len(strInd)): strInd = '0'+strInd
-	# Return string result
+	# Return Result
 	return strInd
 	
 def alphaIndex(index,upper=True):
@@ -41,17 +41,17 @@ def alphaIndex(index,upper=True):
 	@param upper: Return the result in upper case form
 	@type upper: bool
 	'''
-	# Define alpha list
+	# Define Alpha List
 	alpha = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
 		
-	# Build alpha index
+	# Build Alpha Index
 	alphaInd = alpha[index % 26]
 	depth = index / 26.0
 	while int(math.floor(depth)):
-		alphaInd = alpha[depth % 26] + alphaInd
+		alphaInd = alpha[int(depth % 26)-1] + alphaInd
 		depth = depth / 26.0
 	
-	# Check case
+	# Check Case
 	if upper: alphaInd = alphaInd.upper()
 	
 	# Return result

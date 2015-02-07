@@ -1,17 +1,52 @@
 import maya.cmds as mc
 import glTools.utils.stringUtils
 
+def isConstraint(constraint):
+	'''
+	Check if the specified node is a valid constraint
+	@param constraint: The constraint node to query
+	@type constraint: str
+	'''
+	if not mc.objExists(constraint): return False
+	if not mc.ls(constraint,type='constraint'): return False
+	return True
+
+def isBaked(constraint):
+	'''
+	Check if the specified constraint has been baked
+	@param constraint: The constraint node to query
+	@type constraint: str
+	'''
+	# Check Constraint
+	if not isConstraint(constraint):
+		raise Exception('Constraint "'+constraint+'" does not exist!!')
+	
+	# Get Constraint Slave
+	cSlave = slave(constraint)
+	
+	# Get Slave Channels
+	cSlaveAttrs = mc.listConnections(constraint,s=False,d=True,p=True) or []
+	slaveAttrs = [i.split('.')[-1] for i in attrList if i.startswith(slave+'.')] or []
+	
+	# Check Slave Channels
+	if slaveAttrs: return False
+	
+	# Return Result
+	return False
+
 def targetList(constraint):
 	'''
 	Return a list of targets (drivers) for the specified constraint node
 	@param constraint: The constraint node whose targets will be returned
 	@type constraint: str
 	'''
-	# Check constraint
-	if not mc.objExists(constraint): raise UserInputError('Constraint '+constraint+' does not exist!!')
-	constraintType = mc.objectType(constraint)
-	# Get target list
+	# Check Constraint
+	if not isConstraint(constraint):
+		raise Exception('Constraint "'+constraint+'" does not exist!!')
+	
+	# Get Target List
 	targetList = []
+	constraintType = mc.objectType(constraint)
 	if constraintType == 'aimConstraint': targetList = mc.aimConstraint(constraint,q=True,tl=True)
 	elif constraintType == 'geometryConstraint': targetList = mc.geometryConstraint(constraint,q=True,tl=True)
 	elif constraintType == 'normalConstraint': targetList = mc.normalConstraint(constraint,q=True,tl=True)
@@ -21,10 +56,27 @@ def targetList(constraint):
 	elif constraintType == 'poleVectorConstraint': targetList = mc.poleVectorConstraint(constraint,q=True,tl=True)
 	elif constraintType == 'scaleConstraint': targetList = mc.scaleConstraint(constraint,q=True,tl=True)
 	elif constraintType == 'tangentConstraint': targetList = mc.tangentConstraint(constraint,q=True,tl=True)
-	# Check target list
+	
+	# Check Target List
 	if not targetList: targetList = []
-	# Return result
+	
+	# Return Result
 	return targetList
+
+def targetIndex(constraint,target):
+	'''
+	Return the target index of the specified target of a constraint
+	@param constraint: The constraint to return the target index for
+	@type constraint: str
+	@param constraint: The constraint target to return the input index for
+	@type constraint: str
+	'''
+	# Get Target List
+	targetList = targetList(constraint)
+	# Get Target List
+	targetIndex = targetList.index(target)
+	# Return Result
+	return targetIndex
 
 def targetAliasList(constraint):
 	'''
@@ -32,11 +84,13 @@ def targetAliasList(constraint):
 	@param constraint: The constraint node whose targets will be returned
 	@type constraint: str
 	'''
-	# Check constraint
-	if not mc.objExists(constraint): raise UserInputError('Constraint '+constraint+' does not exist!!')
-	constraintType = mc.objectType(constraint)
-	# Get target list
+	# Check Constraint
+	if not isConstraint(constraint):
+		raise Exception('Constraint "'+constraint+'" does not exist!!')
+	
+	# Get Target List
 	targetList = []
+	constraintType = mc.objectType(constraint)
 	if constraintType == 'aimConstraint': targetList = mc.aimConstraint(constraint,q=True,weightAliasList=True)
 	elif constraintType == 'geometryConstraint': targetList = mc.geometryConstraint(constraint,q=True,weightAliasList=True)
 	elif constraintType == 'normalConstraint': targetList = mc.normalConstraint(constraint,q=True,weightAliasList=True)
@@ -46,10 +100,41 @@ def targetAliasList(constraint):
 	elif constraintType == 'poleVectorConstraint': targetList = mc.poleVectorConstraint(constraint,q=True,weightAliasList=True)
 	elif constraintType == 'scaleConstraint': targetList = mc.scaleConstraint(constraint,q=True,weightAliasList=True)
 	elif constraintType == 'tangentConstraint': targetList = mc.tangentConstraint(constraint,q=True,weightAliasList=True)
-	# Check target list
+	
+	# Check Target List
 	if not targetList: targetList = []
-	# Return result
+	
+	# Return Result
 	return targetList
+
+def targetAlias(constraint,target):
+	'''
+	Return the target alias fo the specified constraint and target transform
+	@param constraint: The constraint to get the target alias from
+	@type constraint: str
+	@param target: The constraint target transform to get the target alias from
+	@type target: str
+	'''
+	# Check Constraint
+	if not isConstraint(constraint):
+		raise Exception('Object "'+constraint+'" is not a valid constraint node!')
+	
+	# Get Target List 
+	conTargetList = targetList(constraint)
+	if not conTargetList.count(target):
+		raise Exception('Constraint "'+constraint+'" has no target "'+target+'"!')
+	
+	# Get Target Alias List
+	conTargetAliasList = targetAliasList(constraint)
+	
+	# Get Target Index
+	targetIndex = conTargetList.index(target)
+	
+	# Get Target Alias
+	targetAlias = conTargetAliasList[targetIndex]
+	
+	# Return Result
+	return targetAlias
 
 def slaveList(constraint):
 	'''
@@ -58,16 +143,29 @@ def slaveList(constraint):
 	@type constraint: str
 	'''
 	# Check constraint
-	if not mc.objExists(constraint): raise UserInputError('Constraint '+constraint+' does not exist!!')
+	if not mc.objExists(constraint): raise Exception('Constraint '+constraint+' does not exist!!')
 	constraintType = mc.objectType(constraint)
+	
 	# Get slave list
-	targetList = []
-	[targetList.append(i) for i in mc.listConnections(constraint,s=False,d=True) if not targetList.count(i)]
-	if targetList.count(constraint): targetList.remove(constraint)
-	# Check slave list
-	if not targetList: targetList = []
+	#targetList = []
+	#[targetList.append(i) for i in mc.listConnections(constraint,s=False,d=True) if not targetList.count(i)]
+	#if targetList.count(constraint): targetList.remove(constraint)
+	targetList = mc.listConnections(constraint+'.constraintParentInverseMatrix',s=True,d=False) or []
+	
 	# Return result
 	return targetList
+
+def slave(constraint):
+	'''
+	Return a the slave transforms for the specified constraint node
+	@param constraint: The constraint node to query
+	@type constraint: str
+	'''
+	# Get Slave Transform
+	slaves = slaveList(constraint)
+	if not slaves: raise Exception('Unable to determine slave transform for constraint "'+constraint+'"!')
+	# Return Result
+	return slaves[0]
 
 def blendConstraint(targetList,slave,blendNode='',blendAttr='bias',maintainOffset=True,prefix=''):
 	'''
@@ -139,9 +237,9 @@ def rounding(transformList,control,attr='round',prefix=''):
 	@type prefix: str
 	'''
 	# Check size of transformList list
-	if len(transformList) != 5: raise UserInputError('Supply exactly 5 valid transforms to the transformList list argument!')
+	if len(transformList) != 5: raise Exception('Supply exactly 5 valid transforms to the transformList list argument!')
 	# Check control
-	if not mc.objExists(control): raise UserInputError('Object "'+control+'" does not exist!')
+	if not mc.objExists(control): raise Exception('Object "'+control+'" does not exist!')
 	
 	# Check prefix
 	if not prefix: prefix = glTools.utils.stringUtils.stripSuffix(control)

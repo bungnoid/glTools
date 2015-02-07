@@ -123,15 +123,17 @@ def shapeExtract_weights(baseGeo,targetGeo,weightList,deleteHistory=True,name=''
 	# - Extract Shape -
 	# =================
 	
+	if not name: name = targetGeo+'_extract'
+	
 	# Determine blendShape geometry
-	if name and mc.objExists(name):
+	if mc.objExists(name):
 		blendGeo = name
 		m_blendShape = mc.blendShape(baseGeo,blendGeo)[0]
 		m_blendAlias = mc.listAttr(m_blendShape+'.w',m=True)[0]
 		mc.setAttr(m_blendShape+'.'+m_blendAlias,1.0)
 		mc.delete(blendGeo,ch=True)
 	else:
-		blendGeo = mc.duplicate(baseGeo,n=blendGeo)[0]
+		blendGeo = mc.duplicate(baseGeo,n=name)[0]
 	
 	# Create blendShape to target
 	blendShape = mc.blendShape(targetGeo,blendGeo)[0]

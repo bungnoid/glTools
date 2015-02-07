@@ -4,7 +4,16 @@ import maya.mel as mm
 import glTools.utils.ik
 import glTools.utils.stringUtils
 
-def stretchyIkSpline(ikHandle,parametric=True,scaleAxis='x',scaleAttr='',blendControl='',blendAttr='stretchScale',minPercent=0.0,maxPercent=1.0,prefix=''):
+def stretchyIkSpline(	ikHandle,
+						parametric=True,
+						scaleAxis='x',
+						scaleAttr='',
+						blendControl='',
+						blendAttr='stretchScale',
+						useClosestPoint=False,
+						minPercent=0.0,
+						maxPercent=1.0,
+						prefix=''	):
 	'''
 	Build stretchy IK spline setup
 	@param ikHandle: IK Handle to create stretchy setup for
@@ -19,6 +28,8 @@ def stretchyIkSpline(ikHandle,parametric=True,scaleAxis='x',scaleAttr='',blendCo
 	@type blendControl: str
 	@param blendAttr: The name of the attribute on blendControl that will control the stretchy IK blending.
 	@type blendAttr: str
+	@param useClosestPoint: Use the closest point on the curve instead of distributing the values evenly along the curve.
+	@type useClosestPoint: bool
 	@param minPercent: The minimum u paramerter percentage to calculate the stretch from. Parametric only.
 	@type minPercent: float
 	@param maxPercent: The maximum u paramerter percentage to calculate the stretch to. Parametric only.
@@ -28,14 +39,35 @@ def stretchyIkSpline(ikHandle,parametric=True,scaleAxis='x',scaleAttr='',blendCo
 	'''
 	# Build stretchy IK
 	if parametric:
-		result = stretchyIkSpline_parametric(ikHandle,scaleAxis,scaleAttr,blendControl,blendAttr,minPercent,maxPercent,prefix)
+		result = stretchyIkSpline_parametric(	ikHandle=ikHandle,
+												scaleAxis=scaleAxis,
+												scaleAttr=scaleAttr,
+												blendControl=blendControl,
+												blendAttr=blendAttr,
+												useClosestPoint=useClosestPoint,
+												minPercent=minPercent,
+												maxPercent=maxPercent,
+												prefix=prefix)
 	else:
-		result = stretchyIkSpline_arcLength(ikHandle,scaleAxis,scaleAttr,blendControl,blendAttr,prefix)
+		result = stretchyIkSpline_arcLength(	ikHandle=ikHandle,
+												scaleAxis=scaleAxis,
+												scaleAttr=scaleAttr,
+												blendControl=blendControl,
+												blendAttr=blendAttr,
+												prefix=prefix)
 	
 	# Return Result
 	return result
 
-def stretchyIkSpline_parametric(ikHandle,scaleAxis='x',scaleAttr='',blendControl='',blendAttr='stretchScale',minPercent=0.0,maxPercent=1.0,prefix=''):
+def stretchyIkSpline_parametric(	ikHandle,
+									scaleAxis='x',
+									scaleAttr='',
+									blendControl='',
+									blendAttr='stretchScale',
+									useClosestPoint=False,
+									minPercent=0.0,
+									maxPercent=1.0,
+									prefix=''	):
 	'''
 	Build stretchy IK spline setup using the parametric length of the input curve.
 	@param ikHandle: IK Handle to create stretchy setup for
@@ -48,6 +80,8 @@ def stretchyIkSpline_parametric(ikHandle,scaleAxis='x',scaleAttr='',blendControl
 	@type blendControl: str
 	@param blendAttr: The name of the attribute on blendControl that will control the stretchy IK blending.
 	@type blendAttr: str
+	@param useClosestPoint: Use the closest point on the curve instead of distributing the values evenly along the curve.
+	@type useClosestPoint: bool
 	@param minPercent: The minimum u paramerter percentage to calculate the stretch from
 	@type minPercent: float
 	@param maxPercent: The maximum u paramerter percentage to calculate the stretch to
@@ -87,12 +121,20 @@ def stretchyIkSpline_parametric(ikHandle,scaleAxis='x',scaleAttr='',blendControl
 	# Create pointOnCurveInfo and attach to curve
 	pointOnCurveList = []
 	for i in range(len(ik_joints)):
+		# Build Index
 		ind = str(i+1)
 		if i<9: ind = '0'+ind
+		# Create pointOnCurveInfo node
 		poc = mc.createNode('pointOnCurveInfo',n=prefix+ind+'_pointOnCurveInfo')
-		pointOnCurveList.append(poc)
 		mc.connectAttr(ik_curve+'.worldSpace[0]',poc+'.inputCurve',f=True)
-		mc.setAttr(poc+'.parameter',minu+inc*i)
+		# Determine Parameter Value
+		if useClosestPoint:
+			uValue = glTools.utils.curve.closestPoint(ik_curve,ik_joints[i])
+			mc.setAttr(poc+'.parameter',uValue)
+		else:
+			mc.setAttr(poc+'.parameter',minu+inc*i)
+		# Append To Return List
+		pointOnCurveList.append(poc)
 	
 	# Create distanceBetween and connect to curvePoints
 	distNodeList = []
@@ -148,7 +190,12 @@ def stretchyIkSpline_parametric(ikHandle,scaleAxis='x',scaleAttr='',blendControl
 	# Return result
 	return [pointOnCurveList,distNodeList,multNodeList,scaleNodeList]
 
-def stretchyIkSpline_arcLength(ikHandle,scaleAxis='x',scaleAttr='',blendControl='',blendAttr='stretchScale',prefix=''):
+def stretchyIkSpline_arcLength(	ikHandle,
+								scaleAxis='x',
+								scaleAttr='',
+								blendControl='',
+								blendAttr='stretchScale',
+								prefix=''	):
 	'''
 	Build stretchy IK spline setup using the arc length of the input curve.
 	@param ikHandle: IK Handle to create stretchy setup for

@@ -17,20 +17,23 @@ def create(geo,prefix=''):
 	# Get Handle pivot
 	piv = mc.xform(sModHandle,q=True,ws=True,rp=True)
 	
+	# Initiate Control Builder
+	ctrlBuilder = glTools.tools.controlBuilder.ControlBuilder()
+	
 	# Create Base control
 	base_grp = mc.createNode('transform',n=prefix+'_softModBase_grp')
 	base_ctrl = mc.createNode('transform',n=prefix+'_softModBase_ctrl',p=base_grp)
-	base_ctrlShape = glTools.tools.controlBuilder.controlShape(base_ctrl,'box',scale=2)
+	base_ctrlShape = ctrlBuilder.controlShape(base_ctrl,'box',scale=2)
 	
 	# Create Offset control
 	offset_grp = mc.createNode('transform',n=prefix+'_softModOffset_grp',p=base_ctrl)
 	offset_ctrl = mc.createNode('transform',n=prefix+'_softModOffset_ctrl',p=offset_grp)
-	offset_ctrlShape = glTools.tools.controlBuilder.controlShape(offset_ctrl,'sphere',scale=0.25)
+	offset_ctrlShape = ctrlBuilder.controlShape(offset_ctrl,'sphere',scale=0.25)
 	
 	# Create Falloff control
 	falloff_grp = mc.createNode('transform',n=prefix+'_softModFalloff_grp',p=base_ctrl)
 	falloff_ctrl = mc.createNode('transform',n=prefix+'_softModFalloff_ctrl',p=falloff_grp)
-	falloff_ctrlShape = glTools.tools.controlBuilder.controlShape(falloff_ctrl,'circle',scale=1)
+	falloff_ctrlShape = ctrlBuilder.controlShape(falloff_ctrl,'circle',scale=1)
 	falloff_loc = mc.spaceLocator(n=prefix+'_softModFalloff_loc')[0]
 	mc.parent(falloff_loc,falloff_ctrl)
 	mc.addAttr(falloff_ctrl,ln='radius',min=0.001,dv=1,k=True)

@@ -7,7 +7,18 @@ import glTools.utils.stringUtils
 import glTools.utils.surface
 import glTools.utils.transform
 
-def attachToCurve(curve,transform,uValue=0.0,useClosestPoint=False,orient=False,tangentAxis='x',upAxis='y',upVector=(0,1,0),upType='none',upObject='',uAttr='uParam',prefix=''):
+def attachToCurve(	curve,
+					transform,
+					uValue=0.0,
+					useClosestPoint=False,
+					orient=False,
+					tangentAxis='x',
+					upAxis='y',
+					upVector=(0,1,0),
+					upType='none',
+					upObject='',
+					uAttr='uParam',
+					prefix=''	):
 	'''
 	Constrain a transform to a specified curve.
 	@param curve: Curve to attach transform to
@@ -102,6 +113,9 @@ def attachToCurve(curve,transform,uValue=0.0,useClosestPoint=False,orient=False,
 	# Add U parameter attribute
 	if not mc.objExists(transform+'.'+uAttr):
 		mc.addAttr(transform,ln=uAttr,at='float',min=minu,max=maxu,dv=uValue,k=True)
+	else:
+		try: mc.setAttr(transform+'.'+uAttr,uValue)
+		except: print('Unable to set existing attr "'+transform+'.'+uAttr+'" to specified value ('+str(uValue)+')!')
 	
 	# Create pointOnCurveInfo node
 	poc = prefix+'_pointOnCurveInfo'
@@ -158,9 +172,16 @@ def attachToCurve(curve,transform,uValue=0.0,useClosestPoint=False,orient=False,
 	# Return result
 	return [poc,pntCon,aimCon]
 
-def attachToMesh(mesh,transform,faceId=-1,useClosestPoint=False,orient=False,normAxis='x',tangentAxis='y',prefix=''):
+def attachToMesh(	mesh,
+					transform,
+					faceId=-1,
+					useClosestPoint=False,
+					orient=False,
+					normAxis='x',
+					tangentAxis='y',
+					prefix=''	):
 	'''
-	Attach a transform to a s[ecified mesh object
+	Attach a transform to a specified mesh object
 	@param mesh: Mesh to attach to
 	@type mesh: str
 	@param transform: Transform object to attach to surface
@@ -264,7 +285,18 @@ def attachToMesh(mesh,transform,faceId=-1,useClosestPoint=False,orient=False,nor
 	# Return result
 	return (surfAttach[0],surfAttach[1],surfAttach[2],mesh_lft,edge1_cme,edge2_cme)
 
-def attachToSurface(surface,transform,uValue=0.0,vValue=0.0,useClosestPoint=False,orient=False,uAxis='x',vAxis='y',uAttr='uCoord',vAttr='vCoord',alignTo='u',prefix=''):
+def attachToSurface(	surface,
+						transform,
+						uValue=0.0,
+						vValue=0.0,
+						useClosestPoint=False,
+						orient=False,
+						uAxis='x',
+						vAxis='y',
+						uAttr='uCoord',
+						vAttr='vCoord',
+						alignTo='u',
+						prefix=''	):
 	'''
 	Constrain a transform to a specified surface.
 	@param surface: Nurbs surface to attach to

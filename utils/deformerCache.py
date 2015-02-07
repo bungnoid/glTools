@@ -4,7 +4,7 @@ def loadPlugin():
 	'''
 	'''
 	# Load plugin
-	plugin = 'ikaRigTools'
+	plugin = 'glToolsTools'
 	if not mc.pluginInfo(plugin,q=True,l=True): mc.loadPlugin(plugin)
 
 def create(input,refTargetList=[],prefix=''):

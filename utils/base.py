@@ -2,6 +2,7 @@ import maya.cmds as mc
 import maya.OpenMaya as OpenMaya
 
 import glTools.utils.stringUtils
+import glTools.utils.transform
 
 def isType(nodeName,nodeType):
 	'''
@@ -18,6 +19,70 @@ def isType(nodeName,nodeType):
 	# Return result
 	return True
 
+def verifyNode(node,nodeType):
+	'''
+	Run standard checks on the specified node. Raise an Exception if any checks fail.
+	@param node: Node to verify
+	@type node: str
+	@param nodeType: Node type
+	@type nodeType: str
+	'''
+	# Check Node Exists
+	if not mc.objExists(node):
+		raise Exception('Object "'+node+'" does not exists!')
+	
+	# Check Node Type
+	objType = mc.objectType(node)
+	if objType != nodeType:
+		raise Exception('Object "'+node+'" is not a vaild "'+nodeType+'" node!')
+
+def isVisible(node,checkLodVis=True,checkDrawOverride=True):
+	'''
+	Check if a specified DAG node is visible by check visibility of all ancestor nodes.
+	@param node: Node to verify
+	@type node: str
+	@param checkLodVis: Check LOD visibility
+	@type checkLodVis: bool
+	@param checkDrawOverride: Check drawing override visibility
+	@type checkDrawOverride: bool
+	'''
+	# Check Node
+	if not mc.objExists(node):
+		raise Exception('Object "'+node+'" does not exist!')
+	if not mc.ls(node,dag=True):
+		raise Exception('Object "'+node+'" is not a valid DAG node!')
+	
+	# Get Full Path
+	fullPath = mc.ls(node,l=True)[0]
+	pathPart = fullPath.split('|')
+	pathPart.reverse()
+	
+	# Check Visibility
+	isVisible=True
+	for part in pathPart:
+		
+		# Skip Unknown Nodes
+		if not part: continue
+		if not mc.objExists(part):
+			print('Unable to find ancestor node "'+part+'"!')
+			continue
+		
+		# Check Visibility
+		if not mc.getAttr(part+'.visibility'):
+			isVisible=False
+		# Check LOD Visibility
+		if checkLodVis:
+			if not mc.getAttr(part+'.lodVisibility'):
+				isVisible=False
+		# Check Drawing Overrides
+		if checkDrawOverride:
+			if mc.getAttr(part+'.overrideEnabled'):
+				if not mc.getAttr(part+'.overrideVisibility'):
+					isVisible=False
+	
+	# Return Result
+	return isVisible
+
 def getMObject(object):
 	'''
 	Return an MObject for the input scene object
@@ -26,7 +91,7 @@ def getMObject(object):
 	'''
 	# Check input object
 	if not mc.objExists(object):
-		raise UserInputError('Object "'+object+'" does not exist!!')
+		raise Exception('Object "'+object+'" does not exist!!')
 	# Get selection list
 	selectionList = OpenMaya.MSelectionList()
 	OpenMaya.MGlobal.getSelectionListByName(object,selectionList)
@@ -43,7 +108,7 @@ def getMDagPath(object):
 	'''
 	# Check input object
 	if not mc.objExists(object):
-		raise UserInputError('Object "'+object+'" does not exist!!')
+		raise Exception('Object "'+object+'" does not exist!!')
 	
 	# Get selection list
 	selectionList = OpenMaya.MSelectionList()
@@ -66,9 +131,15 @@ def getPosition(point):
 	# Determine point type
 	if (type(point) == list) or (type(point) == tuple):
 		if len(point) < 3:
-			raise UserInputError('Invalid point value supplied! Not enough list/tuple elements!')
+			raise Exception('Invalid point value supplied! Not enough list/tuple elements!')
 		pos = point[0:3]
 	elif (type(point) == str) or (type(point) == unicode):
+		
+		# Check Transform
+		mObject = getMObject(point)
+		if mObject.hasFn(OpenMaya.MFn.kTransform):
+			try: pos = mc.xform(point,q=True,ws=True,rp=True)
+			except: pass
 		
 		# pointPosition query
 		if not pos:
@@ -82,9 +153,9 @@ def getPosition(point):
 		
 		# Unknown type
 		if not pos:
-			raise UserInputError('Invalid point value supplied! Unable to determine type of point "'+str(point)+'"!')
+			raise Exception('Invalid point value supplied! Unable to determine type of point "'+str(point)+'"!')
 	else:
-		raise UserInputError('Invalid point value supplied! Invalid argument type!')
+		raise Exception('Invalid point value supplied! Invalid argument type!')
 		
 	# Return result
 	return pos
@@ -114,13 +185,13 @@ def getMPointArray(geometry,worldSpace=True):
 	'''
 	# Check geometry
 	if geometry and not mc.objExists(geometry):
-		raise UserInputError('Object "'+geometry+'" does not exist!')
+		raise Exception('Object "'+geometry+'" does not exist!')
 		
 	# Get points to generate weights from
 	pointList = OpenMaya.MPointArray()
 	if getMObject(geometry).hasFn(OpenMaya.MFn.kTransform):
 		try: geometry = mc.listRelatives(geometry,s=True,ni=True,pa=True)[0]
-		except:	raise UserInputError('Object "'+geometry+'" contains no valid geometry!')
+		except:	raise Exception('Object "'+geometry+'" contains no valid geometry!')
 	
 	# Check worldSpace
 	if worldSpace:
@@ -159,7 +230,7 @@ def getPointArray(geometry,worldSpace=True):
 	
 	# Convert to python list
 	for i in range(mPtArray.length()):
-		ptArray.extend([mPtArray[i][0],mPtArray[i][1],mPtArray[i][2]])
+		ptArray.append([mPtArray[i][0],mPtArray[i][1],mPtArray[i][2]])
 	
 	# Return Result
 	return ptArray
@@ -169,10 +240,12 @@ def getMBoundingBox(geometry,worldSpace=True):
 	Return an MBoundingBox for the specified geometry
 	@param geometry: Geometry to return MBoundingBox for
 	@type geometry: str
+	@param worldSpace: Calculate bounding box in world or local space
+	@type worldSpace: bool
 	'''
 	# Check geometry
 	if geometry and not mc.objExists(geometry):
-		raise UserInputError('Object "'+geometry+'" does not exist!')
+		raise Exception('Object "'+geometry+'" does not exist!')
 	
 	# Get MBoundingBox
 	geoPath = getMDagPath(geometry)
@@ -189,11 +262,62 @@ def getMBoundingBox(geometry,worldSpace=True):
 	# Return result
 	return geoBBox
 
-def toggleNode(nodeList,state=1):
+def getCenter(ptList):
 	'''
-	Toggle the nodeState attribute value of a specified list on nodes
-	@param obj: Object to group
+	Calculate the average center position of the specified list of points.
+	@param ptList: The list of points to calculate center point for.
+	@type ptList: list
+	'''
+	# Initialize Result
+	avgPt = [0,0,0]
+	
+	# Get Center Point
+	numPt = len(ptList)
+	for pt in ptList:
+		ptPos = glTools.utils.base.getPosition(pt)
+		avgPt = [avgPt[0]+ptPos[0],avgPt[1]+ptPos[1],avgPt[2]+ptPos[2]]
+	
+	# Calculate Average Position
+	avgPt = [avgPt[0]/numPt,avgPt[1]/numPt,avgPt[2]/numPt]
+	
+	# Return Result
+	return avgPt
+
+def displayOverride(obj,overrideEnable=0,overrideDisplay=0,overrideLOD=0,overrideVisibility=1,overrideShading=1):
+	'''
+	Set display override for the specified object.
+	@param obj: Object to set display overrides for
 	@type obj: str
+	@param overrideEnable: Sets the display override enable state for the specified DAG object 
+	@type overrideEnable: int
+	@param overrideDisplay: Sets the display override type for the specified DAG object. 0=Normal, 1=Template, 2=Reference
+	@type overrideDisplay: int
+	@param overrideLOD: Sets the display override level of detail value for the specified DAG object. 0=Full, 1=BoundingBox
+	@type overrideLOD: int
+	@param overrideVisibility: Sets the display override visibility value for the specified DAG object 
+	@type overrideVisibility: int
+	@param overrideShading: Sets the display override shading value for the specified DAG object 
+	@type overrideShading: int
+	'''
+	# Checks
+	if not mc.objExists(obj):
+		raise Exception('Object "'+obj+'" does not exist!')
+	if not mc.ls(obj,dag=True):
+		raise Exception('Object "'+obj+'" is not a valid DAG node!')
+	# Set Display override values
+	mc.setAttr(obj+'.overrideEnabled',overrideEnable)
+	mc.setAttr(obj+'.overrideDisplayType',overrideDisplay)
+	mc.setAttr(obj+'.overrideLevelOfDetail',overrideLOD)
+	mc.setAttr(obj+'.overrideVisibility',overrideVisibility)
+	mc.setAttr(obj+'.overrideShading',overrideShading)
+
+def setNodeState(nodeList,state=1):
+	'''
+	Set the nodeState attribute value of a specified list on nodes
+	@param nodeList: List of nodes to set nodeState on.
+	@type nodeList: list
+	@param state: NodeState value to set.
+	@type state: int
 	'''
 	# Check input type
 	if type(nodeList) == str or type(nodeList) == unicode: nodeList = [str(nodeList)]
@@ -215,6 +339,83 @@ def toggleNode(nodeList,state=1):
 		if state: mc.setAttr(node+'.nodeState',0)
 		else: mc.setAttr(node+'.nodeState',1)
 
+def renameChain(root,renameStr='',useAlpha=True):
+	"""
+	Recursive function that renames a non branching hierarchy of nodes based on a rename string.
+	The rename string should contain a # character to denate where to place the instance token for the new name.
+	@param root: Chain root node
+	@type root: str
+	@param renameStr: The rename string used to generate the names for each chain node.
+	@type renameStr: str
+	@param useAlpha: Use alphabetical instance tokens, as opposed to numeric.
+	@type useAlpha: bool
+	"""
+	# =======================
+	# - Check Rename String -
+	# =======================
+	
+	# Check Rename String
+	if not renameStr:
+	
+		result = mc.promptDialog(	title='Rename Chain',
+									message='Enter Rename String:',
+									button=['Rename', 'Cancel'],
+									defaultButton='Rename',
+									cancelButton='Cancel',
+									dismissString='Cancel'	)
+		
+		if result == 'Rename':
+			renameStr = mc.promptDialog(q=True,text=True)	
+    
+    # Check "#" Characters
+	numHash = renameStr.count('#')
+	substring = '#' * numHash
+	if not renameStr.count(substring):
+		raise Exception('Invalid rename string! Pound characters must be consecutive!')
+	
+	# ==================
+	# - Get Chain List -
+	# ==================
+	
+	root = str(root)
+	
+	chainList = []    
+	chainNode = str(mc.ls(mc.listRelatives(root,ad=True,pa=True),type='joint')[0])
+	while(True):
+		chainList.append(chainNode)
+		if chainList[-1] == root: break
+		chainNode = str(mc.listRelatives(chainList[-1],p=True,pa=True)[0])
+	chainList.reverse()
+	chainLen = len(chainList)
+	
+	# ======================
+	# - Rename Chain Nodes -
+	# ======================
+	
+	# Temp Rename to Avoid Name Clash
+	for i in range(chainLen):
+		indStr = 'XXX'+str(i)
+		chainList[i] = mc.rename(chainList[i],renameStr.replace(substring,indStr))
+	
+	for i in range(chainLen-1):
+		
+		# Get instance string
+		indStr = ''
+		if useAlpha: indStr = glTools.utils.stringUtils.alphaIndex(i,upper=True)
+		else: indStr = glTools.utils.stringUtils.stringIndex(i+1,len(substring))
+		
+		# Rename
+		chainList[i] = mc.rename(chainList[i],renameStr.replace(substring,indStr))
+	
+	# Rename Chain End
+	chainList[-1] = mc.rename(chainList[-1],renameStr.replace(substring,'End'))
+	
+	# =================
+	# - Retrun Result -
+	# =================
+	
+	return chainList
+
 def group(obj,center=True,orient=True,groupType='transform',name=''):
 	'''
 	Create a group centered and oriented to the specified transform.
@@ -230,7 +431,7 @@ def group(obj,center=True,orient=True,groupType='transform',name=''):
 	@type name: bool
 	'''
 	# Check group name
-	if not name: name = obj.replace(obj.split('_')[-1],'grp')
+	if not name: name = obj + 'Grp'
 	# Create Group
 	grp = mc.createNode(groupType,n=name)
 	# Align to object
@@ -257,11 +458,11 @@ def group_old(control,groupType=1,center=True,orient=True):
 	'''
 	# Check groupType
 	if not range(3).count(groupType):
-		raise UserInputError('Invalid groupType value supplied!!('+str(groupType)+')')
+		raise Exception('Invalid groupType value supplied!!('+str(groupType)+')')
 	
 	# Generate group name
-	prefix = stringUtils.stripSuffix(control)
-	grp = prefix+'_'+grpType
+	prefix = glTools.utils.stringUtils.stripSuffix(control)
+	grp = prefix+'_'+groupType
 	
 	# Create Group
 	if groupType == 2: grp = mc.createNode('joint',n=grp)
@@ -317,6 +518,29 @@ def getHierarchyList(start,end):
 	
 	# Return result
 	return heir
+
+def dagSort(objectList=[]):
+	'''
+	Sort the list of DAG objects in the hierarchy
+	@param objectList: List of DAG object to sort. If empty, use current selection.
+	@type objectList: list
+	'''
+	# Check Object List
+	if not objectList:
+		objectList = mc.ls(sl=1)
+		objectList = mc.listRelatives(objectList,ad=True)
+		objectList = mc.ls(objectList,transforms=True)
+	
+	# Sort Object List
+	objectList.sort()
+	objectList.reverse()
+	
+	# Reorder Objects
+	for i in objectList:
+		mc.reorder(i,f=True)
+	
+	# Return Result
+	return objectList
 
 def parentList(childList,parentList):
 	'''
@@ -374,6 +598,69 @@ def renameHistoryNodes(obj,nodeType,prefix='',suffix='',stripOldSuffix=True):
 	# Return result
 	return nodeHist
 
+def renameDuplicates(padding=3):
+	'''
+	Rename Duplicate Node Names
+	@param padding: Index padding for duplicate renaming
+	@type padding: int
+	'''
+	# Get NonUnique Names
+	badXforms = [f for f in mc.ls() if '|' in f]
+	badXformsUnlock = [f for f in badXforms if mc.lockNode(f,q=1,lock=1)[0] == False]
+	count = 0
+	
+	# Sort list by the number of '|' appearing in each name.
+	# This way we can edit names from the bottom of the hierarchy up, and not worry about losing child objects from the list.
+	countDict = {}
+	for f in badXformsUnlock: countDict[f] = f.count('|')
+	
+	# Sort the dictionary by value, in reverse, and start renaming.
+	renamed = []
+	for key,value in sorted(countDict.iteritems(),reverse=True, key=lambda (key,value): (value,key)):
+		n = 1
+		newObj = mc.rename(key,key.split('|')[-1]+'_'+str(n).zfill(padding))
+		renamed.append(newObj)
+		while newObj.count('|') > 0:
+			# INFINITE LOOP PROBLEM: if the transform and the shape are named the same, this will go on forever.
+			# we need to write some kind of exception to prevent this from happening.
+			n += 1
+			basename = newObj.split('|')[-1]
+			newName = '_'.join(basename.split('_')[0:-1])+'_'+str(n).zfill(padding)
+			newObj = mc.rename(newObj,newName)
+			renamed.append(newObj)
+		print 'renamed %s to %s' % (key,newObj)
+		count = count+1
+	
+	# Return Result
+	if count < 1:
+		print 'No duplicate names found.'
+		return []
+	else:
+		print('Found and renamed '+str(count)+' objects with duplicate names. Check script editor for details.')
+		return renamed
+
+def closestPointIndex(pt,ptList):
+	'''
+	Return the index of the closest point given a list of target points
+	@param pt: The source point
+	@type pt: list
+	@param ptList: List of target points
+	@type pt: list
+	'''
+	# Initialize
+	dist = 99999999999
+	ind = -1
+	
+	# Iterate over target points
+	for p in range(len(ptList)):
+		d = glTools.utils.mathUtils.distanceBetween(pt,ptList[p])
+		if d < dist:
+			dist = d
+			ind = p
+	
+	# Return Result
+	return ind
+
 def unitConversion(plug,conversionFactor=1.0,conversionFactorSourcePlug='',plugIsSource=True,prefix=''):
 	'''
 	Create a unit conversion node for the given destination attribute
@@ -389,16 +676,16 @@ def unitConversion(plug,conversionFactor=1.0,conversionFactorSourcePlug='',plugI
 	@type prefix: str
 	'''
 	# Check plug
-	if not mc.objExists(plug): raise UserInputError('Plug '+plug+' does not exist!!')
-	if not plug.count('.'): raise UserInputError('Object '+plug+' is not a valid plug (node.attr)!!')
+	if not mc.objExists(plug): raise Exception('Plug '+plug+' does not exist!!')
+	if not plug.count('.'): raise Exception('Object '+plug+' is not a valid plug (node.attr)!!')
 	
 	# Check conversionFactorSourcePlug
 	if conversionFactorSourcePlug:
 		if not mc.objExists(conversionFactorSourcePlug):
-			raise UserInputError('Conversion factor source plug '+conversionFactorSourcePlug+' does not exist!')
+			raise Exception('Conversion factor source plug '+conversionFactorSourcePlug+' does not exist!')
 	
 	# Check prefix
-	if not prefix: prefix = stringUtils.stripSuffix(control.split('.')[0])
+	if not prefix: prefix = glTools.utils.stringUtils.stripSuffix(control.split('.')[0])
 	
 	# Get existing plug connections
 	conns = mc.listConnections(plug,s=not plugIsSource,d=plugIsSource,p=True)
@@ -426,3 +713,92 @@ def unitConversion(plug,conversionFactor=1.0,conversionFactorSourcePlug='',plugI
 	
 	# Return result
 	return unitConversion
+
+def remapValue(inputAttr,targetAttr='',inputMin=0,inputMax=1,outputMin=0,outputMax=1,interpType='linear',rampValues=[],prefix=''):
+	'''
+	Create a remapValue node based on the incoming arguments
+	@param inputAttr: Input attribute plug to connect to the remapValue node input.
+	@type inputAttr: str
+	@param targetAttr: Optional target attribute to receive the output value of the remapValue node.
+	@type targetAttr: str
+	@param inputMin: Input minimum value for the remapValue node.
+	@type inputMin: float
+	@param inputMax: Input maximum value for the remapValue node.
+	@type inputMax: float
+	@param outputMin: Output minimum value for the remapValue node.
+	@type outputMin: float
+	@param outputMax: Output maximum value for the remapValue node.
+	@type outputMax: float
+	@param interpType: Ramp interpolation method.
+	@type interpType: str
+	@param rampValues: List of ramp position and value pairs. [(pos1,val1),(pos2,val2),(pos3,val3)]
+	@type rampValues: list
+	@param prefix: Naming prefix string for remapValue node
+	@type prefix: str
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	# Input Attributes
+	if not mc.objExists(inputAttr):
+		raise Exception('Input attribute "'+inputAttr+'" does not exist!')
+	try: mc.getAttr(inputAttr,l=True)
+	except: raise Exception('Input attribute argument "'+inputAttr+'" is not a valid attribute!')
+	
+	# Target
+	if targetAttr:
+		if not mc.objExists(targetAttr):
+			raise Exception('Target attribute "'+targetAttr+'" does not exist!')
+		try: mc.getAttr(targetAttr,l=True)
+		except: raise Exception('Target attribute argument "'+targetAttr+'" is not a valid attribute!')
+	
+	# Interp Type
+	interpTypeList = ['none','linear','smooth','spline']
+	if not interpTypeList.count(interpType):
+		raise Exception('Invalid interpolation type specified! ("'+interpType+'")')
+	
+	# Prefix
+	if not prefix: prefix = inputAttr.replace('.','_')
+	
+	# ==========================
+	# - Create RemapValue Node -
+	# ==========================
+	
+	remapValueNode = mc.createNode('remapValue',n=prefix+'_remapValue')
+	
+	# Connect Input
+	mc.connectAttr(inputAttr,remapValueNode+'.inputValue',f=True)
+	
+	# Set Input/Output Min/Max
+	mc.setAttr(remapValueNode+'.inputMin',inputMin)
+	mc.setAttr(remapValueNode+'.inputMax',inputMax)
+	mc.setAttr(remapValueNode+'.outputMin',outputMin)
+	mc.setAttr(remapValueNode+'.outputMax',outputMax)
+	
+	# Interp Type
+	interpTypeInd = interpTypeList.index(interpType)
+	mc.setAttr(remapValueNode+'.value[0].value_Interp',interpTypeInd)
+	mc.setAttr(remapValueNode+'.value[1].value_Interp',interpTypeInd)
+	
+	# ====================
+	# - Plot Ramp Values -
+	# ====================
+	
+	for i in range(len(rampValues)):
+		
+		mc.setAttr(remapValueNode+'.value['+str(i)+'].value_Position',rampValues[i][0])
+		mc.setAttr(remapValueNode+'.value['+str(i)+'].value_FloatValue',rampValues[i][1])
+		mc.setAttr(remapValueNode+'.value['+str(i)+'].value_Interp',interpTypeInd)
+	
+	# ===============================
+	# - Connect to Target Attribute -
+	# ===============================
+	
+	if targetAttr: mc.connectAttr(remapValueNode+'.outValue',targetAttr,f=True)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return remapValueNode

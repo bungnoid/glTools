@@ -3,7 +3,7 @@ import maya.cmds as mc
 import glTools.utils.mesh
 import glTools.utils.shape
 
-def addPaintAttr(mesh,attr,attrType='doubleArray'):
+def addPaintAttr(mesh,attr='vertexMap',attrType='doubleArray'):
 	'''
 	Add a paintable array attribute to the specified mesh geometry.
 	@param mesh: Mesh to add paintable attr to

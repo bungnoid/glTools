@@ -4,7 +4,12 @@ import maya.OpenMaya as OpenMaya
 
 import glTools.utils.base
 import glTools.utils.component
+import glTools.utils.mathUtils
 import glTools.utils.matrix
+
+import math
+
+class UserInterupted(Exception): pass
 
 def isMesh(mesh):
 	'''
@@ -12,15 +17,44 @@ def isMesh(mesh):
 	@param mesh: Object to query
 	@type mesh: str
 	'''
-	# Check object exists
+	# Check Object Exists
 	if not mc.objExists(mesh): return False
-	# Check shape
-	if mc.objectType(mesh) == 'transform': mesh = mc.listRelatives(mesh,s=True,ni=True,pa=True)
-	if not mesh: return False
-	if mc.objectType(mesh[0]) != 'mesh': return False
 	
-	# Return result
+	# Check Shape
+	if 'transform' in mc.nodeType(mesh,i=True):
+		meshShape = mc.ls(mc.listRelatives(mesh,s=True,ni=True,pa=True) or [],type='mesh')
+		if not meshShape: return False
+		mesh = meshShape[0]
+	
+	# Check Mesh
+	if mc.objectType(mesh) != 'mesh': return False
+	
+	# Return Result
 	return True
+
+def isOpen(mesh):
+	'''
+	Check if mesh is a closed surface or has boundary components
+	@param mesh: Mesh to check for boundary conditions
+	@type mesh: str
+	'''
+	# Check Mesh
+	if not glTools.utils.mesh.isMesh(mesh):
+		raise Exception('Object "'+mesh+'" is not a valid mesh!!')
+	
+	# Get User Selection
+	sel = mc.ls(sl=1)
+	
+	# Select Mesh
+	mc.select(mesh)
+	mc.polySelectConstraint(mode=3,type=1,where=1)
+	boundarySel = mc.ls(sl=1,fl=1)
+	
+	# Restore User Selection
+	if sel: mc.select(sel)
+	
+	# Return Result
+	return bool(boundarySel)
 	
 def getMeshFn(mesh):
 	'''
@@ -42,7 +76,7 @@ def getMeshFn(mesh):
 	# Return result
 	return meshFn
 
-def getMeshVertexIter(mesh):
+def getMeshVertexIter(mesh,vtxId=None):
 	'''
 	Create an MItMeshVertex class object from the specified polygon mesh
 	@param mesh: Mesh to create function class for
@@ -58,14 +92,23 @@ def getMeshVertexIter(mesh):
 	# Get MFnMesh
 	meshPath = glTools.utils.base.getMDagPath(mesh)
 	meshVertIt = OpenMaya.MItMeshVertex(meshPath)
+	
+	# Initialize faceId
+	if vtxId != None:
+		meshVertUtil = OpenMaya.MScriptUtil(0)
+		meshVertPtr = meshVertUtil.asIntPtr()
+		meshVertIt.setIndex(vtxId,meshVertPtr)
+	
 	# Return result
 	return meshVertIt
 
-def getMeshFaceIter(mesh):
+def getMeshFaceIter(mesh,faceId=None):
 	'''
 	Create an MItMeshPolygon class object from the specified polygon mesh
 	@param mesh: Mesh to create function class for
 	@type mesh: str
+	@param faceId: Face ID to initialize iterator to
+	@type faceId: int or None
 	'''
 	# Checks
 	if not isMesh(mesh): raise Exception('Object '+mesh+' is not a polygon mesh!')
@@ -77,17 +120,27 @@ def getMeshFaceIter(mesh):
 	# Get MFnMesh
 	meshPath = glTools.utils.base.getMDagPath(mesh)
 	meshFaceIt = OpenMaya.MItMeshPolygon(meshPath)
+	
+	# Initialize faceId
+	if faceId != None:
+		meshFaceUtil = OpenMaya.MScriptUtil(0)
+		meshFacePtr = meshFaceUtil.asIntPtr()
+		meshFaceIt.setIndex(faceId,meshFacePtr)
+	
 	# Return result
 	return meshFaceIt
 
-def getMeshEdgeIter(mesh):
+def getMeshEdgeIter(mesh,edgeId=None):
 	'''
 	Create an MItMeshEdge class object from the specified polygon mesh
 	@param mesh: Mesh to create function class for
 	@type mesh: str
+	@param edgeId: Edge ID to initialize iterator to
+	@type edgeId: int or None
 	'''
 	# Checks
-	if not isMesh(mesh): raise Exception('Object '+mesh+' is not a polygon mesh!')
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a polygon mesh!')
 	
 	# Get shape
 	if mc.objectType(mesh) == 'transform':
@@ -96,8 +149,67 @@ def getMeshEdgeIter(mesh):
 	# Get MFnMesh
 	meshPath = glTools.utils.base.getMDagPath(mesh)
 	meshEdgeIt = OpenMaya.MItMeshEdge(meshPath)
+	
+	# Initialize faceId
+	if edgeId != None:
+		meshEdgeUtil = OpenMaya.MScriptUtil(0)
+		meshEdgePtr = meshEdgeUtil.asIntPtr()
+		meshEdgeIt.setIndex(edgeId,meshEdgePtr)
+	
 	# Return result
 	return meshEdgeIt
+
+def getRawPoints(mesh):
+	'''
+	Get mesh vertex positions via the MFnMesh.getRawPoints() method.
+	@param mesh: Mesh to get vertex positions for
+	@type mesh: str
+	'''
+	# Checks
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a polygon mesh!')
+	
+	# Get Mesh Points
+	meshFn = getMeshFn(mesh)
+	meshPts = meshFn.getRawPoints()
+	meshVtx = meshFn.numVertices()
+	
+	# Convert Mesh Points (MPointArray)
+	#meshPtUtil = OpenMaya.MScriptUtil()
+	#meshPtArray = OpenMaya.MPointArray(meshVtx,OpenMaya.MPoint.origin)
+	#for i in range(meshVtx):
+	#	meshPtArray[i] = OpenMaya.MPoint(	meshPtUtil.getFloatArrayItem(meshPts,(i*3)+0),
+	#										meshPtUtil.getFloatArrayItem(meshPts,(i*3)+1),
+	#										meshPtUtil.getFloatArrayItem(meshPts,(i*3)+2)	)
+	
+	# Return Result
+	return meshPts
+
+def getPoints(mesh):
+	'''
+	Get mesh vertex positions via the MFnMesh.getRawPoints() method.
+	@param mesh: Mesh to get vertex positions for
+	@type mesh: str
+	'''
+	# Checks
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a polygon mesh!')
+	
+	# Get Mesh Points
+	meshFn = getMeshFn(mesh)
+	meshPts = meshFn.getRawPoints()
+	meshVtx = meshFn.numVertices()
+	
+	# Convert Mesh Points (MPointArray)
+	meshPtArray = []
+	meshPtUtil = OpenMaya.MScriptUtil()
+	for i in range(meshVtx):
+		meshPtArray.append(	[	meshPtUtil.getFloatArrayItem(meshPts,(i*3)+0),
+								meshPtUtil.getFloatArrayItem(meshPts,(i*3)+1),
+								meshPtUtil.getFloatArrayItem(meshPts,(i*3)+2)	]	)
+	
+	# Return Result
+	return meshPtArray
 
 def getNormal(mesh,vtxId,worldSpace=False):
 	'''
@@ -137,7 +249,7 @@ def getNormals(mesh,worldSpace=False):
 	@param worldSpace: Return the normals in world or object space
 	@type worldSpace: bool
 	'''
-	# Check mesh
+	# Check Mesh
 	if not isMesh(mesh):
 		raise Exception('Object '+mesh+' is not a polygon mesh!')
 	
@@ -156,6 +268,110 @@ def getNormals(mesh,worldSpace=False):
 	
 	# Return result
 	return normalArray
+
+def getUVs(mesh,UVset=None):
+	'''
+	Get mesh UV coordinates for the specified mesh
+	@param mesh: Mesh to get UV from.
+	@type mesh: str
+	@param UVset: Mesh UV set to get UVs from. If None, use current UV set.
+	@type UVset: str or None
+	'''
+	# Check Mesh
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a polygon mesh!')
+	# Check UV Set
+	if UVset and not UVset in mc.polyUVSet(mesh,allUVSets=True):
+		raise Exception('Mesh "'+mesh+'" has not UV set "'+UVset+'"!')
+	
+	# Get MeshFn
+	meshFn = getMeshFn(mesh)
+	
+	# Get UVs
+	uArray = OpenMaya.MFloatArray()
+	vArray = OpenMaya.MFloatArray()
+	meshFn.getUVs(uArray,vArray,UVset)
+	u = list(uArray)
+	v = list(vArray)
+	
+	# Return Result
+	return u, v
+
+def resetVertices(mesh):
+	'''
+	Reset vertex transforms for the specified mesh.
+	@param mesh: Mesh to freeze vertex transforms on.
+	@type mesh: str
+	'''
+	# Check Mesh
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a polygon mesh!')
+	
+	# Reset Vertices
+	vtx = mc.polyEvaluate(mesh,v=True)
+	for i in range(vtx):
+		mc.setAttr(mesh+'.pnts['+str(i)+'].pntx',0)
+		mc.setAttr(mesh+'.pnts['+str(i)+'].pnty',0)
+		mc.setAttr(mesh+'.pnts['+str(i)+'].pntz',0)
+	
+	# Return Result
+	return mesh
+
+def freezeVertices(mesh):
+	'''
+	Freeze vertex transforms for the specified mesh.
+	Warning: All construction history will be deleted!!
+	@param mesh: Mesh to freeze vertex transforms on.
+	@type mesh: str
+	'''
+	# Check Mesh
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a polygon mesh!')
+	
+	# Freeze Vertices
+	mc.polyMoveVertex(mesh)
+	mc.delete(mesh,ch=True)
+	
+	# Return Result
+	return mesh
+
+def reassignUVs(mesh,precision=4):
+	'''
+	Reassign stored UVs to specified mesh.
+	Forces mesh UV refresh.
+	@param mesh: Mesh to reassign UVs for.
+	@type mesh: str
+	@param precision: UV float precision to reapply.
+	@type precision: int
+	'''
+	# Check Mesh
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a polygon mesh!')
+	
+	# Get MeshFn
+	meshFn = getMeshFn(mesh)
+	
+	# Get UV Ids
+	uvCount = OpenMaya.MIntArray()
+	uvIds = OpenMaya.MIntArray()
+	meshFn.getAssignedUVs(uvCount,uvIds)
+	
+	# Get UVs
+	uArray = OpenMaya.MFloatArray()
+	vArray = OpenMaya.MFloatArray()
+	meshFn.getUVs(uArray,vArray)
+	u = list(uArray)
+	v = list(vArray)
+	
+	# Set UVs
+	uArrayNew = OpenMaya.MFloatArray()
+	vArrayNew = OpenMaya.MFloatArray()
+	for i in u: uArrayNew.append(round(i,precision))
+	for i in v: vArrayNew.append(round(i,precision))
+	meshFn.setUVs(uArrayNew,vArrayNew)
+	
+	# Reassign UVs
+	meshFn.assignUVs(uvCount,uvIds)
 	
 def getEdgeVertexIndices(mesh,edgeId):
 	'''
@@ -221,7 +437,7 @@ def getFaceEdgeIndices(mesh,faceId):
 	@param mesh: Mesh to query face edge indices for
 	@type mesh: str
 	@param faceId: Face index to get edge indices for
-	@type faceId: str
+	@type faceId: int
 	'''
 	# Check mesh
 	if not isMesh(mesh):
@@ -242,10 +458,96 @@ def getFaceEdgeIndices(mesh,faceId):
 	
 	# Return result
 	return list(faceEdgeArray)
+
+def numUvShells(mesh,uvSet=''):
+	'''
+	Return the number of separate UV shells exist for the specified mesh and UV set.
+	@param mesh: Mesh to query UV shells for
+	@type mesh: str
+	@param uvSet: Mesh UV set to query UV shells for
+	@type uvSet: str
+	'''
+	# Check Mesh
+	if not isMesh(mesh):
+		raise Exception('Object "'+mesh+'" is not a valid mesh!')
+	
+	# Check UV Set
+	uvSets = mc.polyUVSet(mesh,q=True,allUVSets=True)
+	if not uvSets:
+		raise Exception('Mesh object "'+mesh+'" has no UVsets!')
+	if not uvSet: uvSet = uvSets[0]
+	if not uvSets.count(uvSet):
+		raise Exception('Mesh object "'+mesh+'" has no UVset "'+uvSet+'"!')
+	
+	# Initialize Function Sets
+	uvShellArray = OpenMaya.MIntArray()
+	meshFn = getMeshFn(mesh)
+	
+	# Build Pointer
+	shells = OpenMaya.MScriptUtil()
+	shells.createFromInt(0)
+	shellsPtr = shells.asUintPtr()
+	
+	# Get UV Shell IDs
+	meshFn.getUvShellsIds(uvShellArray, shellsPtr, uvSet)
+	
+	# Return Result
+	return shells.getUint(shellsPtr)
+	
+def getVertexUV(mesh,vtxId,uvSet=None,average=False):
+	'''
+	Return the UV value of the specified mesh vertex
+	@param mesh: Mesh to query vertex UV value from
+	@type mesh: str
+	@param vtxId: Face index to get edge indices for
+	@type vtxId: int
+	@param uvSet: Mesh uvSet to query. If empty, use current uvSet.
+	@type uvSet: str
+	@param average: Average shared UV values. If False, use first value.
+	@type average: bool
+	'''
+	# Check mesh
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a polygon mesh!')
+	
+	# Check uvSet
+	if not uvSet:
+		uvSet = mc.polyUVSet(mesh,q=True,cuv=True)
+	
+	# Get Mesh Vertex Function Set
+	vtxIdUtil = OpenMaya.MScriptUtil()
+	vtxIdUtil.createFromInt(0)
+	vtxIdPtr = vtxIdUtil.asIntPtr()
+	vtxIt = glTools.utils.mesh.getMeshVertexIter(mesh)
+	vtxIt.setIndex(vtxId,vtxIdPtr)
+	
+	# Get UV value
+	uArray = OpenMaya.MFloatArray()
+	vArray = OpenMaya.MFloatArray()
+	faceArray = OpenMaya.MIntArray()
+	vtxIt.getUVs(uArray,vArray,faceArray)
+	#vtxIt.getUVs(uArray,vArray,faceArray,uvSet)
+	uArray = list(uArray)
+	vArray = list(vArray)
+	u = uArray[0]
+	v = vArray[0]
+	
+	# Average shared vertex UVs
+	if average:
+		u=0.0
+		v=0.0
+		uvCount = len(uArray)
+		for i in range(uvCount):
+			u += uArray[i]/uvCount
+			v += vArray[i]/uvCount
+	
+	# Return Result
+	return [u,v]
 	
 def closestPoint(mesh,point=(0,0,0)):
 	'''
 	Get the closest point on the specified mesh to a given point
+	Values expected and returned in world space.
 	@param mesh: Mesh to query
 	@type mesh: str
 	@param point: Find the closest point to THIS point
@@ -255,7 +557,7 @@ def closestPoint(mesh,point=(0,0,0)):
 	if not isMesh(mesh): raise Exception('Object '+mesh+' is not a polygon mesh!')
 	
 	# Get MPoint
-	pos = OpenMaya.MPoint(point[0],point[1],point[2],1.0)
+	pos = glTools.utils.base.getMPoint(point)
 	cpos = OpenMaya.MPoint()
 	
 	# Get MFnMesh
@@ -266,6 +568,31 @@ def closestPoint(mesh,point=(0,0,0)):
 	
 	# Return result
 	return (cpos.x,cpos.y,cpos.z)
+
+def closestNormal(mesh,point=(0,0,0)):
+	'''
+	Get the closest face normal from the specified mesh to a given point.
+	Values expected and returned in world space.
+	@param mesh: Mesh to query
+	@type mesh: str
+	@param point: Find the closest normal to THIS point
+	@type point: tuple
+	'''
+	# Check mesh
+	if not isMesh(mesh): raise Exception('Object '+mesh+' is not a polygon mesh!')
+	
+	# Get MPoint
+	pos = glTools.utils.base.getMPoint(point)
+	norm = OpenMaya.MVector()
+	
+	# Get MFnMesh
+	meshFn = getMeshFn(mesh)
+	
+	# Get closestPoint
+	meshFn.getClosestNormal(pos,norm,OpenMaya.MSpace.kWorld)
+	
+	# Return result
+	return (norm.x,norm.y,norm.z)
 
 def closestFace(mesh,point=(0,0,0)):
 	'''
@@ -279,7 +606,7 @@ def closestFace(mesh,point=(0,0,0)):
 	if not isMesh(mesh): raise Exception('Object '+mesh+' is not a polygon mesh!')
 	
 	# Get MPoint
-	pos = OpenMaya.MPoint(point[0],point[1],point[2],1.0)
+	pos = glTools.utils.base.getMPoint(point)
 	cpos = OpenMaya.MPoint()
 	
 	# Create faceId MScriptUtil
@@ -309,7 +636,7 @@ def closestVertex(mesh,point=(0,0,0)):
 		raise Exception('Object '+mesh+' is not a polygon mesh!')
 	
 	# Get MPoint
-	pos = OpenMaya.MPoint(point[0],point[1],point[2],1.0)
+	pos = glTools.utils.base.getMPoint(point)
 	
 	# Get closest face
 	faceId = closestFace(mesh,point)
@@ -338,6 +665,45 @@ def closestVertex(mesh,point=(0,0,0)):
 	# Return result
 	return vtxId
 
+def closestEdge(mesh,point=(0,0,0)):
+	'''
+	Get the closest edge on the specified mesh to a given point
+	@param mesh: Mesh to query
+	@type mesh: str
+	@param point: Find the closest edge to THIS point
+	@type point: tuple
+	'''
+	# Check mesh
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a polygon mesh!')
+	
+	# Get closest face
+	faceId = closestFace(mesh,point)
+	
+	# Create prevIndex MScriptUtil
+	indexUtil = OpenMaya.MScriptUtil()
+	indexUtil.createFromInt(0)
+	indexUtilPtr = indexUtil.asIntPtr()
+	
+	# Get face vertices
+	faceEdgeArray = OpenMaya.MIntArray()
+	faceIter = getMeshFaceIter(mesh)
+	faceIter.setIndex(faceId,indexUtilPtr)
+	faceIter.getEdges(faceEdgeArray)
+	
+	# Get Closest Edge
+	edgeId = -1
+	minDist = 99999
+	for i in list(faceEdgeArray):
+		ePos = edgeCenter(mesh,i)
+		dist = glTools.utils.mathUtils.distanceBetween(point,ePos)
+		if dist < minDist:
+			edgeId = i
+			minDist = dist
+	
+	# Return result
+	return edgeId
+
 def closestPointWeightedAverage(mesh,point=(0,0,0)):
 	'''
 	Get the weighted average of the vertices of the closest face on the specified mesh to a given point
@@ -351,7 +717,7 @@ def closestPointWeightedAverage(mesh,point=(0,0,0)):
 		raise Exception('Object '+mesh+' is not a polygon mesh!')
 	
 	# Get MPoint
-	pos = OpenMaya.MPoint(point[0],point[1],point[2],1.0)
+	pos = glTools.utils.base.getMPoint(point)
 	
 	# Get closest face
 	faceId = closestFace(mesh,point)
@@ -442,7 +808,7 @@ def closestUV(mesh,point=(0,0,0),uvSet=''):
 	meshFn = getMeshFn(mesh)
 	
 	# Get closest UV
-	pnt = OpenMaya.MPoint(point[0],point[1],point[2],1.0)
+	pnt = glTools.utils.base.getMPoint(point)
 	uv = OpenMaya.MScriptUtil()
 	uv.createFromList([0.0,0.0],2)
 	uvPtr = uv.asFloat2Ptr()
@@ -450,6 +816,137 @@ def closestUV(mesh,point=(0,0,0),uvSet=''):
 	
 	# Return result
 	return (uv.getFloat2ArrayItem(uvPtr,0,0),uv.getFloat2ArrayItem(uvPtr,0,1))
+
+def getPointFromUV(mesh,uv=(-1,-1),uvSet=None,tolerance=0.01):
+	'''
+	Get the UV of the closest point on a mesh to a specified point
+	@param mesh: Mesh to query
+	@type mesh: str
+	@param uvSet: UV set to query
+	@type uvSet: str or None
+	@param uv: uv coordinates
+	@type uv: tuple
+	@param tolerance: tolerance ge
+	@type uv: tuple
+	'''
+	
+	# Check mesh
+	if not isMesh(mesh): raise Exception('Object "'+mesh+'" is not a valid mesh!')
+	
+	if not uvSet:
+		currentUvSet = mc.polyUVSet(mesh,q=True,cuv=True)
+		if not currentUvSet: raise Exception('Mesh "'+mesh+'" has no valid uvSet!')
+		uvSet = currentUvSet[0]
+	if not mc.polyUVSet(mesh,q=True,auv=True).count(uvSet):
+		raise Exception('Invalid UV set "'+uvSet+'" specified!"')
+	
+	# Get mesh function set
+	meshFn = getMeshFn(mesh)
+	faceCount = mc.polyEvaluate(mesh, face=True)
+	
+	# convert uv to ptr
+	util = OpenMaya.MScriptUtil()   
+	util.createFromList ((uv[0], uv[1]),2)   
+	uvPtr = util.asFloat2Ptr()
+	
+	positionMPoint = OpenMaya.MPoint()
+	
+	# check each face for uv
+	#worldPos = {'face#': [x,y,z]}
+	worldPos = {}
+	for faceIndex in range(faceCount):
+	
+		try:  
+			meshFn.getPointAtUV( 	faceIndex ,
+								positionMPoint,
+								uvPtr,
+								OpenMaya.MSpace.kWorld,
+								uvSet,
+								tolerance )
+			
+			worldPos[faceIndex] = (positionMPoint.x, positionMPoint.y, positionMPoint.z)
+		except:
+			pass
+	
+	return worldPos
+    
+def faceCenter(mesh,faceId):
+	'''
+	Return the center position of the specified mesh face
+	@param mesh: Mesh to query
+	@type mesh: str
+	@param faceId: Face ID to get center position from
+	@type faceId: int
+	'''
+	# Get Face Center
+	faceIter = getMeshFaceIter(mesh,faceId)
+	pt = faceIter.center(OpenMaya.MSpace.kObject)
+	
+	# Return Result
+	return [pt[0],pt[1],pt[2]]
+
+def edgeCenter(mesh,edgeId):
+	'''
+	Return the center position of the specified mesh face
+	@param mesh: Mesh to query
+	@type mesh: str
+	@param edgeId: Edge ID to get center position from
+	@type edgeId: int
+	'''
+	# Get Face Center
+	edgeIter = getMeshEdgeIter(mesh,edgeId)
+	pt = edgeIter.center(OpenMaya.MSpace.kObject)
+	
+	# Return Result
+	return [pt[0],pt[1],pt[2]]
+
+def distToClosestVertex(mesh,point=(0,0,0)):
+	'''
+	Return the distance to the closest mesh vertex to the specified world position
+	@param mesh: Mesh to query
+	@type mesh: str
+	@param point: Find the closest vertex to THIS point
+	@type point: tuple or list
+	'''
+	# Get Closest Vertex
+	index = closestVertex(mesh,point)
+	# Get Distance to Closest Vertex
+	meshPt = mc.pointPosition(mesh+'.vtx['+str(index)+']',w=True)
+	dist = glTools.utils.mathUtils.distanceBetween(point,meshPt)
+	# Return Result
+	return dist
+
+def distToClosestEdge(mesh,point=(0,0,0)):
+	'''
+	Return the distance to the closest mesh edge to the specified world position
+	@param mesh: Mesh to query
+	@type mesh: str
+	@param point: Find the closest vertex to THIS point
+	@type point: tuple or list
+	'''
+	# Get Closest Edge
+	index = closestEdge(mesh,point)
+	# Get Distance to Closest Edge
+	meshPt = edgeCenter(mesh,index)
+	dist = glTools.utils.mathUtils.distanceBetween(point,meshPt)
+	# Return Result
+	return dist
+
+def distToClosestFace(mesh,point=(0,0,0)):
+	'''
+	Return the distance to the closest mesh face to the specified world position
+	@param mesh: Mesh to query
+	@type mesh: str
+	@param point: Find the closest vertex to THIS point
+	@type point: tuple or list
+	'''
+	# Get Closest Face
+	index = closestFace(mesh,point)
+	# Get Distance to Closest Face
+	meshPt = faceCenter(mesh,index)
+	dist = glTools.utils.mathUtils.distanceBetween(point,meshPt)
+	# Return Result
+	return dist
 
 def snapToMesh(mesh,transform,snapPivot=False):
 	'''
@@ -526,10 +1023,11 @@ def snapToVertex(mesh,transform,vtxId=-1,snapPivot=False):
 	@type snapPivot: bool
 	'''
 	# Check mesh
-	if not isMesh(mesh): raise Exception('Object '+mesh+' is not a valid mesh!')
+	if not isMesh(mesh):
+		raise Exception('Object '+mesh+' is not a valid mesh!')
 	
 	# Get transform position
-	pos = mc.xform(transform,q=True,ws=True,rp=True)
+	pos = glTools.utils.base.getPosition(transform)
 	
 	# Get mesh vertex to snap to
 	if vtxId < 0: vtxId = closestVertex(mesh,pos)
@@ -624,16 +1122,17 @@ def closestVertexAttr(obj,mesh,attr='vtx'):
 	if not isMesh(mesh):
 		raise Exception('Object "'+mesh+'" is not a valid mesh!!')
 	
-	# Get closest vertex
+	# Get Closest Vertex
 	pos = mc.xform(obj,q=True,ws=True,rp=True)
 	vtx = closestVertex(mesh,pos)
 	
-	# Add vertex attribute
+	# Add Vertex Attribute
 	if not mc.objExists(obj+'.'+attr):
-		mc.addAttr(obj,ln=attr,at='long',dv=0,k=True)
+		mc.addAttr(obj,ln=attr,at='long',dv=0,k=False)
+		mc.setAttr(obj+'.'+attr,cb=True)
 	mc.setAttr(obj+'.'+attr,vtx)
 	
-	# Return result
+	# Return Result
 	return (obj+'.'+attr)
 
 def intersect(mesh,source,direction,testBothDirections=False,maxDist=9999):
@@ -662,7 +1161,7 @@ def intersect(mesh,source,direction,testBothDirections=False,maxDist=9999):
 	# Return intersection hit point
 	return [hitPt[0],hitPt[1],hitPt[2]]
 
-def allIntersections(mesh,source,direction,testBothDirections=False,maxDist=9999):
+def allIntersections(mesh,source,direction,testBothDirections=False,maxDist=9999,sort=False):
 	'''
 	Return all intersection points on a specified mesh given a source point and direction
 	@param mesh: Polygon mesh to perform intersection on
@@ -673,6 +1172,10 @@ def allIntersections(mesh,source,direction,testBothDirections=False,maxDist=9999
 	@type direction: list or tuple
 	@param testBothDirections: Test both directions for intersection
 	@type testBothDirections: bool
+	@param maxDist: Maximum search distance for intersection
+	@type maxDist: float
+	@param sort: Sort intersections by distance
+	@type sort: bool
 	'''
 	# Get meshFn
 	meshFn = getMeshFn(mesh)
@@ -685,8 +1188,70 @@ def allIntersections(mesh,source,direction,testBothDirections=False,maxDist=9999
 	hitPtArray = OpenMaya.MFloatPointArray()
 	meshFn.allIntersections(sourcePt,directionVec,None,None,False,OpenMaya.MSpace.kWorld,maxDist,testBothDirections,None,True,hitPtArray,None,None,None,None,None,0.0001)
 	
+	# Sort
+	intersectionList = []
+	if sort:
+		# Get total intersection count
+		hitCount = hitPtArray.length()
+		for n in range(hitCount):
+			# Initialize Sort Variables
+			ind = -1
+			minDist = maxDist
+			# Test Distance
+			for i in range(hitPtArray.length()):
+				dist = (sourcePt - hitPtArray[i]).length()
+				if dist < minDist:
+					minDist = dist
+					ind = i
+			# Append Sorted Intersection List 
+			intersectionList.append((hitPtArray[ind][0],hitPtArray[ind][1],hitPtArray[ind][2]))
+			# Remove Sorted Intersection
+			hitPtArray.remove(ind)
+			
+	else:
+		# Pass Unsorted Intersection List
+		intersectionList = [(hitPtArray[i][0],hitPtArray[i][1],hitPtArray[i][2])]
+	
 	# Return intersection hit point
-	return [(hitPtArray[i][0],hitPtArray[i][1],hitPtArray[i][2]) for i in range(hitPtArray.length())]
+	return intersectionList
+
+def closestInersection(mesh,source,direction,testBothDirections=False,maxDist=9999):
+	'''
+	Return the closest intersection point on a specified mesh given a source point and direction
+	@param mesh: Polygon mesh to perform intersection on
+	@type mesh: str
+	@param source: Source point for the intersection ray
+	@type source: list or tuple or str
+	@param direction: Direction of the intersection ray intersection
+	@type direction: list or tuple
+	@param testBothDirections: Test both directions for intersection
+	@type testBothDirections: bool
+	@param maxDist: Maximum search distance for intersection
+	@type maxDist: float
+	'''
+	# Get All Intersections
+	allIntersects = allIntersections(mesh,source,direction,testBothDirections,maxDist,True)
+	# Return Result
+	return closestIntersection[0]
+
+def furthestInersection(mesh,source,direction,testBothDirections=False,maxDist=9999):
+	'''
+	Return the furthest intersection point on a specified mesh given a source point and direction
+	@param mesh: Polygon mesh to perform intersection on
+	@type mesh: str
+	@param source: Source point for the intersection ray
+	@type source: list or tuple or str
+	@param direction: Direction of the intersection ray intersection
+	@type direction: list or tuple
+	@param testBothDirections: Test both directions for intersection
+	@type testBothDirections: bool
+	@param maxDist: Maximum search distance for intersection
+	@type maxDist: float
+	'''
+	# Get All Intersections
+	allIntersects = allIntersections(mesh,source,direction,testBothDirections,maxDist,True)
+	# Return Result
+	return furthestIntersection[-1]
 
 def intersectDist(mesh,source,direction,testBothDirections=False,maxDist=9999):
 	'''
@@ -776,6 +1341,33 @@ def intersectAllFaces(mesh,source,direction,testBothDirections=False,maxDist=999
 	# Return intersection hit point
 	return list(hitFaceArray)
 
+def faceArea(mesh,faceId):
+	'''
+	Return the surface area of a specified mesh polygon face.
+	@param mesh: Polygon mesh to get face area for
+	@type mesh: str
+	@param faceId: Face index of the polygon to get the area for
+	@type faceId: int
+	'''
+	# Check mesh
+	if not glTools.utils.mesh.isMesh(mesh):
+		raise Exception('Object "'+mesh+'" is not a valid mesh!!')
+	# Check faceId
+	if faceId > mc.polyEvaluate(mesh,f=True):
+		raise Exception('Face ID ('+str(faceId)+') out of range for for mesh "'+mesh+'"!')
+	
+	# Get Mesh Face Fn
+	faceIt = getMeshFaceIter(mesh,faceId)
+	
+	# Get Area
+	areaUtil = OpenMaya.MScriptUtil()
+	areaUtil.createFromDouble(0.0)
+	areaPtr = areaUtil.asDoublePtr()
+	faceIt.getArea(areaPtr)
+	
+	# Return Result
+	return OpenMaya.MScriptUtil(areaPtr).asDouble()
+
 def locatorMesh(mesh,locatorScale=0.1,prefix=''):
 	'''
 	Attach mesh vertices to a list of locators.
@@ -786,14 +1378,22 @@ def locatorMesh(mesh,locatorScale=0.1,prefix=''):
 	@param prefix: Naming prefix for locators
 	@type prefix: str
 	'''
-	# Check mesh
+	# ==========
+	# - Checks -
+	# ==========
+	
+	# Check Mesh
 	if not glTools.utils.mesh.isMesh(mesh):
 		raise Exception('Object "'+mesh+'" is not a valid mesh!!')
 	
-	# Check prefix
+	# Check Prefix
 	if not prefix: prefix = mesh
 	
-	# Get vertices
+	# =======================
+	# - Build Mesh Locators -
+	# =======================
+	
+	# Get Vertices
 	componentList = glTools.utils.component.getComponentStrList(mesh)
 	
 	# Iterate over component list
@@ -803,30 +1403,142 @@ def locatorMesh(mesh,locatorScale=0.1,prefix=''):
 		# Get componet position
 		pos = mc.pointPosition(componentList[i])
 		
-		# Build vertex locator
+		# Build Vertex Locator
 		loc = mc.spaceLocator(n=prefix+'_vtx'+str(i)+'_loc')[0]
 		mc.move(pos[0],pos[1],pos[2],loc,a=True,ws=True)
 		mc.setAttr(loc+'.localScale',locatorScale,locatorScale,locatorScale)
 		locatorList.append(loc)
 		
-		# Freeze vertex
+		# Freeze Vertices
 		mc.move(0,0,0,componentList[i],a=True,ws=True)
 		
-	# Freeze mesh
+	# Freeze Mesh
 	deformer = mc.deformer(mesh,type='cluster')
 	mc.delete(mesh,constructionHistory=True)
 	
-	# Connect locators
+	# Connect Locators
 	for i in range(len(locatorList)):
 		mc.connectAttr(locatorList[i]+'.worldPosition[0]',mesh+'.controlPoints['+str(i)+']',f=True)
 	
-	# Return result
+	# =================
+	# - Return Result -
+	# =================
+	
 	return locatorList
+
+def buildMeshFromPoints(pts,ptsInU=None,ptsInV=None,closedInU=False,attach=False,prefix=None):
+	'''
+	Build a new mesh from a list of points.
+	@param pts: List of points to mesh from.
+	@type pts: list
+	@param ptsInU: Number os mesh vertices in U direction.
+	@type ptsInU: int
+	@param ptsInV: Number os mesh vertices in V direction.
+	@type ptsInV: int
+	@param closedInV: Is mesh closed in V direction. (tube or plane)
+	@type closedInV: bool
+	@param attach: Attach mesh vertices to points. If True, points are assumed to be locators.
+	@type attach: bool
+	@param prefix: Naming prefix.
+	@type prefix: str
+	'''
+	# ==========
+	# - Checks -
+	# ==========
+	
+	# Check Prefix
+	if not prefix: prefix = 'point'
+	
+	# Check Point Count
+	if not ptsInU:
+		ptsInU = math.sqrt(len(pts))
+		if ptsInU % 1: raise Exception('Invalid point count! Points in U not specified!')
+	if not ptsInV:
+		ptsInV = math.sqrt(len(pts))
+		if ptsInV % 1: raise Exception('Invalid point count! Points in V not specified!')
+	if len(pts) != (ptsInU*ptsInV):
+		raise Exception('Invalid point count! Does not match ptsInU*ptsInV!')
+	
+	# ==============
+	# - Build Mesh -
+	# ==============
+	
+	# Create Mesh
+	mesh = None
+	if closedInU:
+		mesh = mc.polyCylinder(ch=False,sx=ptsInU,sy=(ptsInV-1),sz=0)[0]
+		mc.delete(mesh+'.f['+str(ptsInU*(ptsInV-1))+':'+str(ptsInU*(ptsInV-1)+1)+']')
+	else:
+		mesh = mc.polyPlane(ch=False,sx=(ptsInU-1),sy=(ptsInV-1))[0]
+	
+	# Rename Mesh
+	mesh = mc.rename(mesh,prefix+'_mesh')
+	
+	# Get Mesh Vertices
+	componentList = glTools.utils.component.getComponentStrList(mesh)
+	
+	# ==========================
+	# - Position Mesh Vertices -
+	# ==========================
+	
+	if attach:
+		
+		# Freeze Mesh Vertices
+		mc.move(0,0,0,componentList,a=True,ws=True)
+		freezeVertices(mesh)
+		
+		# Attach Vertices to Points
+		for i in range(len(componentList)):
+			mc.connectAttr(pts[i]+'.worldPosition[0]',mesh+'.controlPoints['+str(i)+']',f=True)
+	
+	else:
+		
+		# Position Vertices to Points
+		for i in range(len(componentList)):
+			pt = glTools.utils.base.getPosition(pts[i])
+			mc.move(pt[0],pt[1],pt[2],componentList[i],a=True,ws=True)
+		
+		# Freeze Mesh Vertices
+		freezeVertices(mesh)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return mesh
+	
+def borderEdgeList(mesh):
+	'''
+	Return a list of mesh border edges.
+	@param mesh: Polygon mesh to find border edges from.
+	@type mesh: str
+	'''
+	# Initialize edge list
+	sel = []
+	
+	# Initialize mesh edge iterator
+	meshIt = getMeshEdgeIter(mesh)
+	
+	# Iterate over edges
+	meshIt.reset()
+	while(1):
+		
+		# Check border edge
+		if meshIt.onBoundary():
+			sel.append(mesh+'.e['+str(meshIt.index())+']')
+		
+		# Iterate
+		meshIt.next()
+		if meshIt.isDone(): break
+	
+	# Return result
+	return sel
+
 
 def getCornerVertexIds(mesh):
 	'''
 	Return a list of vertex Ids for vertices connected to only 2 edges
-	@param mesh: Polygon mesh to find corner vertices for
+	@param mesh: Polygon mesh to find corner vertices from.
 	@type mesh: str
 	'''
 	# Checks
@@ -858,76 +1570,228 @@ def getCornerVertexIds(mesh):
 	# Return result
 	return cornerVetexList
 	
-def vertexConnectivityList(mesh,faceConnectivity=False):
+def vertexConnectivityList(mesh,faceConnectivity=False,showProgress=False):
 	'''
 	Return a vertex connectivity list for the specified mesh
 	@param mesh: Polygon mesh to return vertex connectivity list for
 	@type mesh: str
 	@param faceConnectivity: Use face connectivity instead of edge connectivity
 	@type faceConnectivity: str
+	@param showProgress: Show operation progress using the main progress bar
+	@type showProgress: bool
 	'''
-	# Check mesh
+	# Check Mesh
 	if not glTools.utils.mesh.isMesh(mesh):
 		raise Exception('Object "'+mesh+'" is not a valid mesh!!')
 	
-	# Get MItMeshVertex
-	meshVertIt = getMeshVertexIter(mesh)
-	if faceConnectivity: meshFaceIt = getMeshFaceIter(mesh)
+	# =========================
+	# - Iterate Over Vertices -
+	# =========================
 	
-	# Initialize connectivity list
-	vertexConnectList = []
+	# Begin Progress Bar
+	gMainProgressBar = mm.eval('$tmp = $gMainProgressBar')
+	if showProgress:
+		vtxCount = mc.polyEvaluate(mesh,v=True)
+		mc.progressBar( gMainProgressBar,e=True,bp=True,ii=True,status=('Building Vertex Connectivity Array...'),maxValue=vtxCount )
 	
-	# Build vertex connectivity list
-	vertexConnectIntArray = OpenMaya.MIntArray()
-	if faceConnectivity: faceConnectIntArray = OpenMaya.MIntArray()
+	# Initialize Connectivity List
+	vtxConnectList = []
+	vtxCount = glTools.utils.component.getComponentCount(mesh)
 	
 	# Iterate over vertices
-	meshVertIt.reset()
-	for i in range(meshVertIt.count()):
+	for i in range(vtxCount):
 		
-		# Check connectivity type
-		if faceConnectivity:
-			
-			# Face connectivity
-			vertexConnectSet = set([])
-			meshVertIt.getConnectedFaces(faceConnectIntArray)
-			for f in faceConnectIntArray:
-				meshFaceIt.setIndex(f,OpenMaya.MScriptUtil().asIntPtr())
-				meshFaceIt.getVertices(vertexConnectIntArray)
-				vertexConnectSet = vertexConnectSet.union(set(vertexConnectIntArray))
-			vertexConnectSet.remove(i)
-			vertexConnectList.append(list(vertexConnectSet))
-			
-		else:
-			
-			# Edge connectivity
-			meshVertIt.getConnectedVertices(vertexConnectIntArray)
-			vertexConnectList.append(list(vertexConnectIntArray))
+		# Get Connected Vertex IDs
+		connSel = glTools.utils.component.expandVertexSelection(mesh+'.vtx['+str(i)+']',useFace=faceConnectivity)
+		connIDs = glTools.utils.component.singleIndexList(connSel)
+		connIDs.remove(i)
 		
-		# Iterate to next vertex
-		meshVertIt.next()
+		# Append Return Value
+		vtxConnectList.append(connIDs)
+		
+		# Update Progress Bar
+		if showProgress:
+			if mc.progressBar(gMainProgressBar,q=True,isCancelled=True):
+				mc.progressBar(gMainProgressBar,e=True,endProgress=True)
+				raise UserInterupted('Operation cancelled by user!')
+			mc.progressBar(gMainProgressBar,e=True,step=1)
 	
-	# Return result
-	return vertexConnectList
+	# End Current Progress Bar
+	if showProgress: mc.progressBar(gMainProgressBar,e=True,endProgress=True)
+	
+	# Return Result
+	return vtxConnectList
 
-def duplicateAndConnect(meshList):
+def vertexConnectivityDict(mesh,vtxIDs,faceConnectivity=False,showProgress=False):
 	'''
-	polyDuplicateAndConnect wrapper for multiple meshes
-	@param meshList: List of polygon mesh objects to run polyDuplicateAndConnect on. 
-	@type meshList: list
+	Return a vertex connectivity list for the specified mesh and vertex IDs
+	@param mesh: Polygon mesh to return vertex connectivity list for
+	@type mesh: str
+	@param vtxIDs: Vertex IDs to get connectivity lists for
+	@type vtxIDs: list
+	@param faceConnectivity: Use face connectivity instead of edge connectivity
+	@type faceConnectivity: bool
+	@param showProgress: Show operation progress using the main progress bar
+	@type showProgress: bool
 	'''
-	# Initialize return value
-	dupList = []
+	# Check Mesh
+	if not glTools.utils.mesh.isMesh(mesh):
+		raise Exception('Object "'+mesh+'" is not a valid mesh!!')
 	
-	# Duplicate and connect
-	for mesh in meshList:
-		mc.select(mesh)
-		mc.polyDuplicateAndConnect()
-		dup = mc.ls(sl=True,l=True)
-		dupList.append(dup[0])
+	# =========================
+	# - Iterate Over Vertices -
+	# =========================
 	
-	# Return duplicate list
-	return dupList
+	# Begin Progress Bar
+	gMainProgressBar = mm.eval('$tmp = $gMainProgressBar')
+	if showProgress:
+		mc.progressBar( gMainProgressBar,e=True,bp=True,ii=True,status=('Building Vertex Connectivity Array...'),maxValue=len(vtxIDs) )
+	
+	# Initialize Connectivity List
+	vtxConnectDict = {}
+	
+	for vtxID in vtxIDs:
+		
+		# Get Connected Vertex IDs
+		connSel = glTools.utils.component.expandVertexSelection(mesh+'.vtx['+str(vtxID)+']',useFace=faceConnectivity)
+		connIDs = glTools.utils.component.singleIndexList(connSel)
+		connIDs.remove(vtxID)
+		
+		# Append Return Value
+		vtxConnectDict[vtxID] = connIDs
+		
+		# Update Progress Bar
+		if showProgress:
+			if mc.progressBar(gMainProgressBar,q=True,isCancelled=True):
+				mc.progressBar(gMainProgressBar,e=True,endProgress=True)
+				raise UserInterupted('Operation cancelled by user!')
+			mc.progressBar(gMainProgressBar,e=True,step=1)
+	
+	# End Current Progress Bar
+	if showProgress: mc.progressBar(gMainProgressBar,e=True,endProgress=True)
+		
+	# Return Result
+	return vtxConnectDict
+
+def faceVertexList(mesh,showProgress=False):
+	'''
+	Return a list of mesh face vertex IDs for the specified mesh
+	@param mesh: Polygon mesh to return face vertex list for
+	@type mesh: str
+	@param showProgress: Show operation progress using the main progress bar
+	@type showProgress: bool
+	'''
+	# Check Mesh
+	if not glTools.utils.mesh.isMesh(mesh):
+		raise Exception('Object "'+mesh+'" is not a valid mesh!!')
+	
+	# ======================
+	# - Iterate Over Faces -
+	# ======================
+	
+	# Initialize Face Iterator
+	faceIter = getMeshFaceIter(mesh)
+	
+	# Begin Progress Bar
+	gMainProgressBar = mm.eval('$tmp = $gMainProgressBar')
+	if showProgress:
+		mc.progressBar( gMainProgressBar,e=True,bp=True,ii=True,status=('Building Face Vertex Array...'),maxValue=faceIter.count() )
+	
+	# Initialize Connectivity List
+	faceVertexList = []
+	faceVertexArray = OpenMaya.MIntArray()
+	
+	# Face Iterator
+	faceIter.reset()
+	for i in range(faceIter.count()):
+		
+		# Get Face Vertices
+		faceIter.getVertices(faceVertexArray)
+		
+		# Append to Face Vertex List
+		faceVertexList.append(list(faceVertexArray))
+		
+		# Increment Iterator
+		try:
+			faceIter.next()
+		except:
+			print('end of iter')
+			break
+		#if not faceIter.next():
+		#	print('end of iter')
+		#	break
+		
+		# Update Progress Bar
+		if showProgress:
+			if mc.progressBar(gMainProgressBar,q=True,isCancelled=True):
+				mc.progressBar(gMainProgressBar,e=True,endProgress=True)
+				raise UserInterupted('Operation cancelled by user!')
+			mc.progressBar(gMainProgressBar,e=True,step=1)
+	
+	# End Current Progress Bar
+	if showProgress: mc.progressBar(gMainProgressBar,e=True,endProgress=True)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return faceVertexList
+
+def faceVertexDict(mesh,faceIDs,showProgress=False):
+	'''
+	Return a dictionary of mesh face vertex IDs for the specified mesh and face IDs
+	@param mesh: Polygon mesh to return face vertex list for
+	@type mesh: str
+	@param showProgress: Show operation progress using the main progress bar
+	@type showProgress: bool
+	'''
+	# Check Mesh
+	if not glTools.utils.mesh.isMesh(mesh):
+		raise Exception('Object "'+mesh+'" is not a valid mesh!!')
+	
+	# ======================
+	# - Iterate Over Faces -
+	# ======================
+	
+	# Initialize Face Iterator
+	faceIter = getMeshFaceIter(mesh)
+	
+	# Begin Progress Bar
+	gMainProgressBar = mm.eval('$tmp = $gMainProgressBar')
+	if showProgress:
+		mc.progressBar( gMainProgressBar,e=True,bp=True,ii=True,status=('Building Face Vertex Array...'),maxValue=len(faceIDs) )
+	
+	# Initialize Connectivity List
+	faceVertexDict = {}
+	faceVertexArray = OpenMaya.MIntArray()
+	
+	# Face Iterator
+	for i in faceIDs:
+		
+		# Go to Face Index
+		faceIter.setIndex(i)
+		
+		# Get Face Vertices
+		faceIter.getVertices(faceVertexArray)
+		
+		# Append to Face Vertex List
+		faceVertexDict[i].append(list(faceVertexArray))
+		
+		# Update Progress Bar
+		if showProgress:
+			if mc.progressBar(gMainProgressBar,q=True,isCancelled=True):
+				mc.progressBar(gMainProgressBar,e=True,endProgress=True)
+				raise UserInterupted('Operation cancelled by user!')
+			mc.progressBar(gMainProgressBar,e=True,step=1)
+	
+	# End Current Progress Bar
+	if showProgress: mc.progressBar(gMainProgressBar,e=True,endProgress=True)
+	
+	# =================
+	# - Return Result -
+	# =================
+	
+	return faceVertexDict
 
 def uncombine(polyUnite):
 	'''
@@ -1080,3 +1944,4 @@ def polyCleanup(	meshList = 		[],
 	
 	# Return Result
 	return result
+

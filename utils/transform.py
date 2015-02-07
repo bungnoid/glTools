@@ -5,17 +5,17 @@ import glTools.utils.base
 import glTools.utils.mathUtils
 import glTools.utils.matrix
 
-def isTransform(object):
+def isTransform(obj):
 	'''
 	Check if the specified object is a valid transform node
 	@param object: Object to query type
 	@type object: str
 	'''
 	# Check object exists
-	if not mc.objExists(object): return False
+	if not mc.objExists(obj): return False
 	
 	# Check transform
-	mObject = glTools.utils.base.getMObject(object)
+	mObject = glTools.utils.base.getMObject(obj)
 	if not mObject.hasFn(OpenMaya.MFn.kTransform): return False
 	
 	# Return result
@@ -82,3 +82,53 @@ def match(transform,target):
 	
 	# Set source matrix
 	mc.xform(transform,ws=True,matrix=targetMat)
+
+def matchUsing(transform,reference,target):
+	'''
+	Match the specified transform to a target transform, relative to a reference transform
+	@param transform: Transform to set
+	@type transform: str
+	@param reference: Reference transform
+	@type reference: str
+	@param target: Target transform to match to
+	@type target: str
+	'''
+	# Checks
+	if not mc.objExists(transform):
+		raise Exception('Transform "'+transform+'" does not exist!')
+	if not mc.objExists(reference):
+		raise Exception('Reference transform "'+target+'" does not exist!')
+	if not mc.objExists(target):
+		raise Exception('Target transform "'+target+'" does not exist!')
+		
+	# Get Transform, Target and Reference Matrices
+	trMat = getMatrix(transform)
+	rfMat = getMatrix(reference)
+	tgMat = getMatrix(target)
+	
+	# Calculate Transform Target
+	resultMat = trMat * rfMat.inverse() * tgMat
+	
+	# Set Transform Matrix
+	setFromMatrix(transform,resultMat)
+
+def setFromMatrix(transform,matrix):
+	'''
+	Set the specified transform from a matrix value
+	@param transform: Transform to set
+	@type transform: str
+	@param matrix: Matrix to set transform values from
+	@type matrix: OpenMaya.MMatrix
+	'''
+	# Checks
+	if not mc.objExists(transform):
+		raise Exception('Transform "'+transform+'" does not exist!')
+	
+	# Get Matrix as List
+	matrixList = glTools.utils.matrix.asList(matrix)
+	
+	# Set source matrix
+	mc.xform(transform,ws=True,matrix=matrixList)
+	
+	# Return Result
+	return matrixList

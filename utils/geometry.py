@@ -2,7 +2,26 @@ import maya.cmds as mc
 
 import glTools.utils.shape
 
-class UserInputError(Exception): pass
+def isGeometry(geometry):
+	'''
+	Check if the specified node is a valid geometry shape node.
+	@param geometry: The node object to query as geometry
+	@type geometry: str
+	'''
+	# Check Object Exists
+	if not mc.objExists(geometry): return False
+	
+	# Check Shape
+	if 'transform' in mc.nodeType(geometry,i=True):
+		geoShape = mc.ls(mc.listRelatives(mesh,s=True,ni=True,pa=True) or [],geometry=True)
+		if not geoShape: return False
+		geometry = geoShape[0]
+	
+	# Check Geometry
+	if 'geometryShape' in mc.nodeType(geometry,i=True): return True
+	
+	# Return Result
+	return False
 
 def geometryType(geometry):
 	'''
@@ -10,21 +29,21 @@ def geometryType(geometry):
 	@param geometry: The geometry object to query
 	@type geometry: str
 	'''
-	# Check geometry
+	# Check Geometry
 	if not mc.objExists(geometry):
-		raise UserInputError('Geometry object "'+geometry+'" does not exist!!')
+		raise Exception('Geometry object "'+geometry+'" does not exist!!')
 	
-	# Get shapes
+	# Get Shapes
 	shapeList = glTools.utils.shape.getShapes(geometry,intermediates=False)
 	if not shapeList:
 		shapeList = glTools.utils.shape.getShapes(geometry,intermediates=True)
 	if not shapeList:
-		raise UserInputError('Geometry object "'+geometry+'" has no shape children!!')
+		raise Exception('Geometry object "'+geometry+'" has no shape children!!')
 	
-	# Get geometry type
+	# Get Geometry Type
 	geometryType = mc.objectType(shapeList[0])
 	
-	# Return result
+	# Return Result
 	return geometryType
 
 def componentType(geometry):
@@ -35,7 +54,7 @@ def componentType(geometry):
 	'''
 	# Check geometry
 	if not mc.objExists(geometry):
-		raise UserInputError('Geometry object "'+geometry+'" does not exist!!')
+		raise Exception('Geometry object "'+geometry+'" does not exist!!')
 	
 	# Get geometry type
 	geoType = geometryType(geometry)
@@ -56,9 +75,9 @@ def replace(sourceGeometry,destinationGeometry):
 	'''
 	# Check destinationGeometry and sourceGeometry
 	if not mc.objExists(destinationGeometry):
-		raise UserInputError('Destination geometry "'+destinationGeometry+'" does not exist!!')
+		raise Exception('Destination geometry "'+destinationGeometry+'" does not exist!!')
 	if not mc.objExists(sourceGeometry):
-		raise UserInputError('Source geometry "'+sourceGeometry+'" does not exist!!')
+		raise Exception('Source geometry "'+sourceGeometry+'" does not exist!!')
 	
 	# Determine geometry types
 	sourceShape = sourceGeometry
@@ -81,7 +100,7 @@ def replace(sourceGeometry,destinationGeometry):
 							sourceShape = intShape
 							break
 			else:
-				raise UserInputError('Unknown geometry type "'+sourceGeoType+'" is not supported!!')
+				raise Exception('Unknown geometry type "'+sourceGeoType+'" is not supported!!')
 		
 	destinationShape = destinationGeometry
 	destinationGeoType = geometryType(destinationGeometry)
@@ -103,11 +122,11 @@ def replace(sourceGeometry,destinationGeometry):
 							destinationShape = intShape
 							break
 			else:
-				raise UserInputError('Unknown geometry type "'+destinationGeoType+'" is not supported!!')
+				raise Exception('Unknown geometry type "'+destinationGeoType+'" is not supported!!')
 		
 	# Check geometry types
 	if destinationGeoType != sourceGeoType:
-		raise UserInputError('Destination and Source geometry types do not match!!')
+		raise Exception('Destination and Source geometry types do not match!!')
 	
 	# Replace geometry
 	#-
@@ -121,4 +140,4 @@ def replace(sourceGeometry,destinationGeometry):
 		mc.evalDeferred('mc.disconnectAttr("'+sourceShape+'.local","'+destinationShape+'.create")')
 	# Unknown geometry type
 	else:
-		raise UserInputError('Unknown geometry type "'+destinationGeoType+'" is not supported!!')
+		raise Exception('Unknown geometry type "'+destinationGeoType+'" is not supported!!')
