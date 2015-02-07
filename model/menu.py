@@ -81,44 +81,8 @@ def create():
 		
 		mc.setParent('..', menu=True)
 		
-		# TEMPLATE
-		mc.menuItem(allowOptionBoxes=True, label='Template', subMenu=True, tearOff=True)
-		
-		templatePath = '/laika/library/VFX/model/biped_template.mb'
-		mc.menuItem(label='Reference Biped Template', command='mc.file("'+templatePath+'",reference=True,type="mayaBinary",namespace="template")')
-		mc.menuItem(label='Remove Biped Template', command='import glTools.utils.reference;reload(glTools.utils.reference);glTools.utils.reference.removeReference(glTools.utils.reference.getReferenceFromNamespace("template"))')
-		
-		mc.menuItem(divider=True)
-		
-		mc.menuItem(label='Import Eye Geometry', command='mc.file("/laika/jobs/hbm/vfx/asset/char/template/mod/scene_graph/pub/eyes.latest/template.mod.eyes.base.mb",i=True,type="mayaBinary")')
-		
-		mc.setParent('..', menu=True)
-		
-		# CLEANUP
-		mc.menuItem(allowOptionBoxes=True, label= 'Cleanup', subMenu=True, tearOff=True)
-		
-		mc.setParent('..', menu=True)
-		
-		# KUBO
-		mc.menuItem(allowOptionBoxes=True, label= 'KUBO', subMenu=True, tearOff=True)
-		
-		faceRefNS = 'topology_ref'
-		faceRefFile = '/laika/jobs/kbo/vfx/asset/crowd/rufus/mod/data/maya/Rufus_color_v01.mb'
-		mc.menuItem(label='Import Face Topology Reference', command='mc.file("'+faceRefFile+'",r=True,namespace="'+faceRefNS+'")')
-		
-		mc.setParent('..', menu=True)
-		
-		# HBM
-		mc.menuItem(allowOptionBoxes=True, label= 'HBM', subMenu=True, tearOff=True)
-		
-		mc.menuItem(label='Costume Variant Turntables', command='import glTools.model.turntable;reload(glTools.model.turntable);glTools.model.turntable.costumeVariantTurntable()')
-		
-		mc.setParent('..', menu=True)
-		
 		#----------------------------------------#
 		
 		mc.menuItem(divider =True)
-		
 		mc.menuItem(label='Refresh Menu', command='import glTools.model.menu;reload(glTools.model.menu);glTools.model.menu.create()')
-		
 		mc.setParent('..')

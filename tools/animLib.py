@@ -8,11 +8,6 @@ import ika.maya.sgxml
 import os
 import datetime
 
-def animLibRoot():
-	'''
-	'''
-	return '/laika/jobs/hbm/vfx/lib/maya/animLibVFX/anim_tool_data/animLib'
-
 def getNodes(filePath,stripNS=False):
 	'''
 	'''

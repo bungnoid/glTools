@@ -136,7 +136,6 @@ def colorizeUI(	colorIndex,
 	window = 'colorizeUI'
 	if mc.window(window,q=True,ex=1): mc.deleteUI(window)
 	window = mc.window(window,t='Colorize',s=True)
-	#window -title "Laika Colorize (v1.3)" -rtf 1 -s 1 -mnb 1 colorizeWin;
 	
 	mc.columnLayout()
 	mc.columnLayout(cw=550,adjustableColumn=True)

@@ -235,78 +235,11 @@ def create():
 		
 		mc.setParent('..', menu=True)
 		
-		# > BIPED
-		mc.menuItem(allowOptionBoxes=True, label= 'Biped', subMenu=True, tearOff=True)
-		
-		biped_template = '/laika/library/VFX/rigging/biped_template.mb'
-		mc.menuItem(label='Import Template', command='mc.file("'+biped_template+'",i=True,type="mayaBinary")')
-		mc.menuItem(label='Mirror Template (Left To Right)', command='import glTools.nrig.rig.biped;reload(glTools.nrig.rig.biped);glTools.nrig.rig.biped.BipedRig().mirrorTemplate(leftToRight=True)')
-		mc.menuItem(label='Mirror Template (Right To Left)', command='import glTools.nrig.rig.biped;reload(glTools.nrig.rig.biped);glTools.nrig.rig.biped.BipedRig().mirrorTemplate(leftToRight=False)')
-		
-		mc.setParent('..', menu=True)
-		
-		# > FACE
-		mc.menuItem(allowOptionBoxes=True, label= 'Face', subMenu=True, tearOff=True)
-		
-		# Brow Template
-		template_file = '/laika/library/VFX/rigging/face/brow/brow_template.mb'
-		mc.menuItem(label='Import Brow Template', command='mc.file("'+template_file+'",i=True,type="mayaBinary")')
-		
-		# Cheek Template
-		template_file = '/laika/library/VFX/rigging/face/cheek/cheek_template.mb'
-		mc.menuItem(label='Import Cheek Template', command='mc.file("'+template_file+'",i=True,type="mayaBinary")')
-		
-		# Eye Template
-		template_file = '/laika/library/VFX/rigging/face/eye/vfx_eye_rig.mb'
-		mc.menuItem(label='Import Eye Template', command='mc.file("'+template_file+'",reference=True,namespace="eye",type="mayaBinary")')
-		
-		# Eyelid Template
-		template_file = '/laika/library/VFX/rigging/face/eyelid/eyelid_template.mb'
-		mc.menuItem(label='Import Eyelids Template', command='mc.file("'+template_file+'",i=True,type="mayaBinary")')
-		
-		# Jaw Template
-		template_file = '/laika/library/VFX/rigging/face/jaw/jaw_template.mb'
-		mc.menuItem(label='Import Jaw Template', command='mc.file("'+template_file+'",i=True,type="mayaBinary")')
-		
-		# Mouth Template
-		template_file = '/laika/library/VFX/rigging/face/mouth/mouth_template.mb'
-		mc.menuItem(label='Import Mouth Template', command='mc.file("'+template_file+'",i=True,type="mayaBinary")')
-		
-		# Nose Template
-		template_file = '/laika/library/VFX/rigging/face/nose/nose_template.mb'
-		mc.menuItem(label='Import Nose Template', command='mc.file("'+template_file+'",i=True,type="mayaBinary")')
-		
-		# Teeth Template
-		template_file = '/laika/library/VFX/rigging/face/teeth/teeth_template.mb'
-		mc.menuItem(label='Import Teeth Template', command='mc.file("'+template_file+'",i=True,type="mayaBinary")')
-		
-		# Tongue Template
-		template_file = '/laika/library/VFX/rigging/face/tongue/tongue_rig.mb'
-		mc.menuItem(label='Import Tongue Template', command='mc.file("'+template_file+'",reference=True,namespace="tongue",type="mayaBinary")')
-		
-		# Secondary Control Locators
-		template_file = '/laika/library/VFX/rigging/face/secondary/secondary_locs.mb'
-		mc.menuItem(label='Import Secondary Ctrl Locators', command='mc.file("'+template_file+'",i=True,type="mayaBinary")')
-		
-		#mc.menuItem(label='Import Template', command='mc.file("/laika/jobs/hbm/vfx/asset/char/template/rig/scene_graph/pub/face_template.latest/template.rig.face_template.base.mb",i=True,type="mayaBinary")')
-		#mc.menuItem(divider =True)
-		#mc.menuItem(label='Create Sculpt Mask', command='import glTools.rig.faceRig;reload(glTools.rig.faceRig);glTools.rig.faceRig.FaceRig().createSculptMesh()')
-		#mc.menuItem(label='Secondary Ctrl Input Mesh', command='import glTools.rig.faceRig;reload(glTools.rig.faceRig);glTools.rig.faceRig.FaceRig().connectSecondaryCtrlInputMesh()')
-		#mc.menuItem(label='Create Secondary Ctrls', command='import glTools.rig.faceRig;reload(glTools.rig.faceRig);glTools.rig.faceRig.FaceRig().buildLocalCtrl()')
-		#mc.menuItem(label='Set Secondary Ctrls Attach', command='import glTools.rig.faceRig;reload(glTools.rig.faceRig);glTools.rig.faceRig.FaceRig().buildLocalCtrl()')
-		
-		mc.setParent('..', menu=True)
-		
 		# > PROP
 		mc.menuItem(allowOptionBoxes=True, label= 'Prop', subMenu=True, tearOff=True)
 		mc.menuItem(label='Build Basic Prop', command='import glTools.nrig.rig.prop;reload(glTools.nrig.rig.prop);glTools.nrig.rig.prop.PropRig().build(clean=True)')
 		
 		mc.setParent('..', menu=True)
-		
-		# > Rig Constraints
-		#mc.menuItem(allowOptionBoxes=True, label= 'Rig Constraints', subMenu=True, tearOff=True)
-		#mc.menuItem(label='Create Constraint Target Locator', command='import glTools.rig.constraintTargetControl;reload(glTools.rig.constraintTargetControl);glTools.rig.constraintTargetControl.createTargetLocatorFromSel()')
-		#mc.setParent('..', menu=True)
 		
 		mc.setParent('..', menu=True)
 		
@@ -443,130 +376,8 @@ def create():
 		
 		# > POSE MATCH
 		mc.menuItem(allowOptionBoxes=True, label='Pose Match Setup', subMenu=True, tearOff=True)
-		
 		mc.menuItem(label='Evaluation Order', command='glTools.ui.poseMatch.evaluationOrderUI()')
 		mc.menuItem(label='Match Rules', command='glTools.ui.poseMatch.matchRulesUI()')
-		
-		mc.setParent('..', menu=True)
-		
-		# > KUBO
-		mc.menuItem(allowOptionBoxes=True, label='KUBO', subMenu=True, tearOff=True)
-		
-		mc.menuItem(label='Load Model', command='import glTools.nrig.rig.rig;reload(glTools.nrig.rig.rig);glTools.nrig.rig.rig.Rig().loadModel()')
-		
-		mc.menuItem(divider =True)
-		
-		mc.menuItem(allowOptionBoxes=True, label='Smoke Demon', subMenu=True, tearOff=True)
-		
-		mc.menuItem(label='Clean Curve', command='import glTools.show.kbo.char.smoke_demon;reload(glTools.show.kbo.char.smoke_demon);glTools.show.kbo.char.smoke_demon.cleanCurve()')
-		mc.menuItem(label='Build CV Rig', command='import glTools.show.kbo.char.smoke_demon;reload(glTools.show.kbo.char.smoke_demon);glTools.show.kbo.char.smoke_demon.CVrig()')
-		mc.menuItem(label='Attach Path Rig', command='import glTools.show.kbo.char.smoke_demon;reload(glTools.show.kbo.char.smoke_demon);glTools.show.kbo.char.smoke_demon.attachPathRig()')
-		
-		mc.menuItem(divider =True)
-		
-		mc.menuItem(label='Add Path Bulge',en=0,command='import glTools.show.kbo.char.smoke_demon;reload(glTools.show.kbo.char.smoke_demon);glTools.show.kbo.char.smoke_demon.addPathBulge()')
-		mc.menuItem(label='Add Tube Bulge',en=0,command='import glTools.show.kbo.char.smoke_demon;reload(glTools.show.kbo.char.smoke_demon);glTools.show.kbo.char.smoke_demon.addTubeBulge()')
-		
-		mc.menuItem(divider =True)
-		
-		mc.menuItem(label='Export Cache', command='import glTools.show.kbo.char.smoke_demon;reload(glTools.show.kbo.char.smoke_demon);glTools.show.kbo.char.smoke_demon.exportUI()')
-		
-		mc.setParent('..', menu=True)
-		mc.setParent('..', menu=True)
-		
-		# > HBM
-		mc.menuItem(allowOptionBoxes=True, label='HBM', subMenu=True, tearOff=True)
-		
-		mc.menuItem(label='Load Model', command='import glTools.nrig.rig;reload(glTools.rig.rig);glTools.nrig.rig.Rig().loadModel()')
-		mc.menuItem(label='Load Groom', command='import glTools.nrig.groomRig;reload(glTools.rig.groomRig);glTools.nrig.groomRig.GroomRig().loadGroom()')
-		
-		mc.menuItem(divider =True)
-		
-		
-		# > > BoxTroll
-		
-		mc.menuItem(allowOptionBoxes=True, label= 'BoxTroll', subMenu=True, tearOff=True)
-		
-		mc.menuItem(label='Import Template', command='mc.file("/laika/jobs/hbm/vfx/asset/char/template/rig/scene_graph/pub/boxtroll_template.latest/template.rig.boxtroll_template.base.mb",i=True,type="mayaBinary")')
-		mc.menuItem(label='Mirror Template (Left To Right)', command='import glTools.show.hbm.char.boxtrollRig;reload(glTools.show.hbm.char.boxtrollRig);glTools.show.hbm.char.boxtrollRig.BoxtrollRig().mirrorTemplate(leftToRight=True)')
-		mc.menuItem(label='Mirror Template (Right To Left)', command='import glTools.show.hbm.char.boxtrollRig;reload(glTools.show.hbm.char.boxtrollRig);glTools.show.hbm.char.boxtrollRig.BoxtrollRig().mirrorTemplate(leftToRight=False)')
-		mc.menuItem(label='Build Full Rig', command='import glTools.show.hbm.char.boxtrollRig;reload(glTools.show.hbm.char.boxtrollRig);glTools.show.hbm.char.boxtrollRig.BoxtrollRig().build(assetName="")')
-		
-		#----------------------------------------#
-		mc.menuItem(divider =True)
-		#----------------------------------------#
-		
-		mc.menuItem(label='Build Base Rig', command='import glTools.show.hbm.char.boxtrollRig;reload(glTools.show.hbm.char.boxtrollRig);glTools.show.hbm.char.boxtrollRig.BoxtrollRig().build_base(assetName="")')
-		mc.menuItem(label='Build Body Rig (Box)', command='import glTools.show.hbm.char.boxtrollRig;reload(glTools.show.hbm.char.boxtrollRig);glTools.show.hbm.char.boxtrollRig.BoxtrollRig().build_body()')
-		mc.menuItem(label='Build Arms Rig', command='import glTools.show.hbm.char.boxtrollRig;reload(glTools.show.hbm.char.boxtrollRig);rig = glTools.show.hbm.char.boxtrollRig.BoxtrollRig();rig.build_arms();rig.limbStretch_arms();rig.limbTwist_arms()')
-		mc.menuItem(label='Build Legs Rig', command='import glTools.show.hbm.char.boxtrollRig;reload(glTools.show.hbm.char.boxtrollRig);rig = glTools.show.hbm.char.boxtrollRig.BoxtrollRig();rig.build_legs();rig.limbStretch_legs();rig.limbTwist_legs()')
-		mc.menuItem(label='Build Head Rig', command='import glTools.show.hbm.char.boxtrollRig;reload(glTools.show.hbm.char.boxtrollRig);glTools.show.hbm.char.boxtrollRig.BoxtrollRig().build_head()')
-		
-		#----------------------------------------#
-		mc.menuItem(divider =True)
-		#----------------------------------------#
-		
-		mc.menuItem(label='Build Rig from Parts', command='print("NOT IMPLEMENTED!")')
-		
-		mc.setParent('..', menu=True)
-		
-		# > > HUMAN RIG SUB-MENUS
-		
-		#mc.menuItem(allowOptionBoxes=True, label='Human', subMenu=True, tearOff=True)
-		#
-		#mc.menuItem(label='Build Body Rig', command='import glTools.show.hbm.char.human;reload(glTools.show.hbm.char.human);glTools.show.hbm.char.human.run("bodyRig_build")')
-		#mc.menuItem(label='Build Face Rig',en=0) # , command='import glTools.show.hbm.char.human;reload(glTools.show.hbm.char.human);glTools.show.hbm.char.human.run("faceRig_build")')
-		#mc.menuItem(label='Build Mocap Rig', command='import glTools.show.hbm.char.human;reload(glTools.show.hbm.char.human);glTools.show.hbm.char.human.run("mocapRig_build")')
-		#mc.menuItem(label='Build Groom Rig', command='import glTools.show.hbm.char.human;reload(glTools.show.hbm.char.human);glTools.show.hbm.char.human.run("groomRig_build")')
-		#mc.menuItem(label='Build Hair Rig',en=0) # command='import glTools.show.hbm.char.human;reload(glTools.show.hbm.char.human);glTools.show.hbm.char.human.run("hairRig_build")')
-		#mc.menuItem(divider =True)
-		#mc.menuItem(label='Attach Face Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().faceRig_attach()')
-		#mc.menuItem(label='Attach Groom Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().groomRig_attach()')
-		#mc.menuItem(label='Attach Costume Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().costumeRig_attach()')
-		#mc.menuItem(label='Attach Hair Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().hairRig_attach()')
-		#mc.menuItem(divider =True)
-		#mc.menuItem(label='Remove Face Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().faceRig_remove()')
-		#mc.menuItem(label='Remove Groom Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().groomRig_remove()')
-		#mc.menuItem(label='Remove Costume Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().costumeRig_remove()')
-		#mc.menuItem(label='Remove Hair Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().hairRig_remove()')
-		#
-		#mc.setParent('..', menu=True)
-		
-		# > > CHARACTER SPECIFIC SUB-MENUS
-		
-		charList = []
-		charList.append(('gen_male_a','GenMaleA'))
-		charList.append(('gen_male_b','GenMaleB'))
-		charList.append(('gen_male_c','GenMaleC'))
-		charList.append(('gen_male_d','GenMaleD'))
-		charList.append(('gen_female_a','GenFemaleA'))
-		charList.append(('gen_female_b','GenFemaleB'))
-		charList.append(('gen_boy_a','GenBoyA'))
-		charList.append(('gen_girl_b','GenGirlB'))
-		
-		for char in charList:
-			
-			mc.menuItem(allowOptionBoxes=True, label= char[1], subMenu=True, tearOff=True)
-		
-			mc.menuItem(label='Build Body Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().bodyRig_build()')
-			mc.menuItem(label='Build Face Rig',en=0) # , command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().bodyRig_build()')
-			mc.menuItem(label='Build Mocap Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().mocapRig_build()')
-			mc.menuItem(label='Build Groom Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().groomRig_build()')
-			mc.menuItem(label='Build Hair Rig',en=0) # command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().hairRig_build()')
-			mc.menuItem(divider =True)
-			mc.menuItem(label='Attach Face Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().faceRig_attach()')
-			mc.menuItem(label='Attach Groom Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().groomRig_attach()')
-			mc.menuItem(label='Attach Costume Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().costumeRig_attach()')
-			mc.menuItem(label='Attach Hair Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().hairRig_attach()')
-			mc.menuItem(divider =True)
-			mc.menuItem(label='Remove Face Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().faceRig_remove()')
-			mc.menuItem(label='Remove Groom Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().groomRig_remove()')
-			mc.menuItem(label='Remove Costume Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().costumeRig_remove()')
-			mc.menuItem(label='Remove Hair Rig', command='import glTools.show.hbm.char.'+char[0]+'_rig;reload(glTools.show.hbm.char.'+char[0]+'_rig);glTools.show.hbm.char.'+char[0]+'_rig.'+char[1]+'().hairRig_remove()')
-			
-			mc.setParent('..', menu=True)
-		
-		mc.setParent('..', menu=True)
 		
 		mc.setParent('..', menu=True)
 		

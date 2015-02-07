@@ -211,7 +211,3 @@ def buildTube(	crv
 		scale =1,
 		rsp	= 1
 		)
-
-#AbcExport -j "-frameRange 1 115 -ro -stripNamespaces -root |beetle_wrap_001_crv_export -root |beetle_wrap_002_crv_export -root |beetle_wrap_003_crv_export -root |beetle_wrap_004_crv_export -root |beetle_wrap_005_crv_export -root |beetle_wrap_006_crv_export -root |beetle_wrap_007_crv_export -root |beetle_wrap_008_crv_export -file /laika/jobs/kbo/vfx/seq/2900/0150/anm/workfile/cache/alembic/2900.0150.beetle_monkey_wrap_blocking.curves.012.abc";
-#AbcImport -mode import -fitTimeRange -setToStartFrame -debug "/laika/jobs/kbo/vfx/seq/2900/0150/anm/workfile/cache/alembic/2900.0150.beetle_monkey_wrap_blocking.geometry.012.abc";
-
