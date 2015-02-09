@@ -5,8 +5,6 @@ import os.path
 
 import glTools.utils.namespace
 
-import ika.maya.sgxml
-
 def loadAbcImportPlugin():
 	'''
 	Load AbcImport plugin
@@ -42,14 +40,14 @@ def loadGpuCachePlugin():
 
 def loadIkaGpuCachePlugin():
 	'''
-	Load ikaGpuCache plugin
+	Load glGpuCache plugin
 	'''
-	# Load ikaGpuCache plugin
-	if not mc.pluginInfo('ikaGpuCache',q=True,l=True):
+	# Load glGpuCache plugin
+	if not mc.pluginInfo('glGpuCache',q=True,l=True):
 		try:
-			mc.loadPlugin('ikaGpuCache', quiet=True)
+			mc.loadPlugin('glGpuCache', quiet=True)
 		except:
-			raise Exception('Error loading ikaGpuCache plugin!')
+			raise Exception('Error loading glGpuCache plugin!')
 
 def isAlembicNode(cacheNode):
 	'''
@@ -81,17 +79,17 @@ def isGpuCacheNode(gpuCacheNode):
 	# Return result
 	return True
 
-def isIkaGpuCacheNode(ikaGpuCacheNode):
+def isIkaGpuCacheNode(glGpuCacheNode):
 	'''
-	Check if the specified node is a valid ika GPU cache node
-	@param ikaGpuCacheNode: Object to query
-	@type ikaGpuCacheNode: str
+	Check if the specified node is a valid gl GPU cache node
+	@param glGpuCacheNode: Object to query
+	@type glGpuCacheNode: str
 	'''
 	# Check object exists
-	if not mc.objExists(ikaGpuCacheNode): return False
+	if not mc.objExists(glGpuCacheNode): return False
 	
 	# Check node type
-	if mc.objectType(ikaGpuCacheNode) != 'ikaGpuCache': return False
+	if mc.objectType(glGpuCacheNode) != 'glGpuCache': return False
 	
 	# Return result
 	return True
@@ -374,72 +372,7 @@ def importAbcCache(cachePath='',cacheName='',namespace='',parent='',mode='import
 	
 	return cacheNode
 
-def loadFromXml(xmlPath='',loadGpuCache=True,asXmlReference=False,frameOffset=0):
-	'''
-	Load Alembic cache from XML scenegraph file.
-	@param xmlPath: Scenegraph XML file path
-	@type xmlPath: str
-	@param loadGpuCache: Load as GPU cache.
-	@type loadGpuCache: bool
-	@param asXmlReference: Setup imported nodes as an XML Reference.
-	@type asXmlReference: bool
-	@param frameOffset: Apply a frame offset for al imported ikaGpuCache nodes.
-	@type frameOffset: int
-	'''
-	# =========
-	# - Check -
-	# =========
-	
-	# Check XML Path
-	if not xmlPath:
-		xmlPath = mc.fileDialog2(fileFilter='*.xml',dialogStyle=2,fileMode=1,caption='Load Scenegraph XML',okCaption='Load')
-		if not xmlPath: return []
-		xmlPath = xmlPath[0]
-	
-	# Check XML File
-	if not os.path.isfile(xmlPath):
-		raise Exception('Invalid file path! File "'+xmlPath+'" does not exists!')
-	
-	# Load Import Plugin
-	if loadGpuCache:
-		loadGpuCachePlugin()
-		try: loadIkaGpuCachePlugin()
-		except: print ('ikaGpuCache plugin not available!')
-	if not loadGpuCache:
-		loadAbcImportPlugin()
-	
-	# Check XML Path
-	if not os.path.isfile(xmlPath):
-		raise Exception('XML path "'+xmlPath+'" is not a valid file!')
-	
-	# =======================
-	# - Load Cache from XML -
-	# =======================
-	
-	# Load From XML
-	nodes = ika.maya.sgxml.loadFromXml(xmlPath,gpuCache=loadGpuCache,alembic=(not loadGpuCache))
-	
-	# Group XML Nodes
-	xmlGrp = mc.createNode('transform',n='XML_refGrp#')
-	mc.parent(nodes,xmlGrp)
-	
-	# ========================
-	# - Create XML Reference -
-	# ========================
-	
-	if asXmlReference:
-		
-		# Add Time Offset
-		ika.maya.sgxml.setupAlembicTimeOffset(xmlGrp,frameOffset)
-		
-		# Set Export Type
-		ika.maya.sgxml.setExportNodeType(xmlGrp,'ikaSgXmlReference',filepath=xmlPath)
-	
-	# =================
-	# - Return Result -
-	# =================
-	
-	return [xmlGrp,nodes]
+
 
 def loadAbcFromGpuCache(gpuCacheNode,debug=False):
 	'''

@@ -102,7 +102,7 @@ def workfileBatchUI_addPyCmd(TFB):
 	@type TFB: str
 	'''
 	# Get Python Command File
-	pyCmdFile = mc.fileDialog2(fileFilter='*.py',dialogStyle=2,fileMode=1,startingDirectory='/home/g/glaker/maya/bin',cap='Workfile Batch - Select Command File')
+	pyCmdFile = mc.fileDialog2(fileFilter='*.py',dialogStyle=2,fileMode=1,cap='Workfile Batch - Select Command File')
 	
 	# Update textFieldButtonGrp
 	if pyCmdFile: mc.textFieldButtonGrp(TFB,e=True,text=pyCmdFile[0])
@@ -187,7 +187,7 @@ def workfileBatchSubmit(workfile,cmdsFile='',versionUp=False,snapshot=False,publ
 	@type publishNote: str
 	'''
 	# Build Workfile Batch Command
-	workfileBatchCmd = "/home/g/glaker/bin/workfileBatch"
+	workfileBatchCmd = "/" ######!!!!!
 	workfileBatchCmd += " "+workfile
 	workfileBatchCmd += " "+cmdsFile
 	workfileBatchCmd += " "+str(int(versionUp))

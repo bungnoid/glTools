@@ -1,9 +1,6 @@
 import maya.mel as mm
 import maya.cmds as mc
 
-import ika.maya.file
-import ika.context.util
-
 import os.path
 
 def listReferences(parentNS=None):
@@ -871,21 +868,3 @@ def removeConnectAttrEdits(nodeList=''):
 	# Reload Reference
 	if refLoaded: mc.file(loadReference=refNode)
 
-def contextFromNsReferencePath(NS):
-	'''
-	Return the context for the reference file path of the specified namespace
-	@param NS: Namespace to query reference file for
-	@type NS: str
-	'''
-	# Get Reference From Namespace
-	refNode = getReferenceFromNamespace(NS)
-	if not refNode: raise Exception('No referenced nodes in "'+NS+'" namespace!')
-	
-	# Get Reference File Path
-	refFile = getReferenceFile(refNode,withoutCopyNumber=True)
-	
-	# Get Context From Reference File Path
-	ctx = ika.context.util.getContext(*os.path.split(refFile))
-	
-	# Return Result
-	return ctx

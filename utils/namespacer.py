@@ -2,16 +2,9 @@ import os, sys
 import collections
 import types
 
-import ika.io.logger as logger
-import ika.exceptions
-
 import maya.cmds as mc
 import maya.mel as mm
 import maya.utils as mu
-
-if 'eval' not in dir(mm):
-    logger.error('something failed trying to import maya modules.')
-    sys.exit(1)
 
 DEFAULT_NODES = [u'characterPartition', u'defaultHardwareRenderGlobals', u'defaultLayer', u'defaultLightList1', u'defaultLightSet', 
 u'defaultObjectSet', u'defaultRenderGlobals', u'defaultRenderLayer', u'defaultRenderLayerFilter', u'defaultRenderQuality', 
@@ -27,11 +20,11 @@ u'sideShape', u'top', u'topShape', u'polyMergeEdgeToolDefaults', u'polyMergeFace
 
 HISTORY_STACK = []
  
-class NamespacerError(ika.exceptions.Error):
+class NamespacerError(Exception):
     pass
  
     
-class InvalidNamespaceError(NamespacerError):
+class InvalidNamespaceError(Exception):
     pass
 
 
@@ -116,7 +109,7 @@ def getRelatedNS(ns, mode='children'):
     mode = mode.lower()
     vaildModes = ['children', 'parents', 'both']
     if not mode in vaildModes:
-        raise ika.exceptions.InvalidArgError('The mode specified "%s" is not a valid choice %s' % (mode, vaildModes))
+        raise Exception('The mode specified "%s" is not a valid choice %s' % (mode, vaildModes))
     
     # clean the namespace
     ns = cleanNS(ns)
@@ -749,7 +742,7 @@ def importToNamespace(filePath, namespace, group=False, removeExistingNamespaces
     
     # checks
     if not os.path.isfile(filePath):
-        raise ika.exceptions.MissingDataError('The filepath "%s" does not exist, unable to reference into the "%s" namespace'\
+        raise Exception('The filepath "%s" does not exist, unable to reference into the "%s" namespace'\
                                               % (filePath, namespace))
                                               
     # record the current objects in the namespace we are importing to
@@ -822,7 +815,7 @@ def referenceToNamespace(filepath, namespace=None):
     @rtype: str
     '''
     if not os.path.isfile(filepath):
-        raise ika.exceptions.MissingDataError('The filepath "%s" does not exist, unable to reference into the "%s" namespace'\
+        raise Exception('The filepath "%s" does not exist, unable to reference into the "%s" namespace'\
                                               % (filepath, namespace))
     
     # get the current namespace
@@ -859,9 +852,6 @@ def nukeNamespace(namespace):
     if namespace == ':':
         raise NamespacerError('You can not nuke the world ":" namespace!')
        
-    import ika.apps.maya.common.nukeReference
-    _nukeRef = ika.apps.maya.common.nukeReference.NukeReference()
-        
     # get the nodes in the namespace
     nodes = getObjectsOfNS(namespace)
     if not nodes:

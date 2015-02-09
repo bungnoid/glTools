@@ -11,49 +11,6 @@ import glTools.utils.reference
 import os
 import os.path
 
-import ika.glob
-import ika.fs.layout
-
-# IKA Context Utility
-import ika.maya.file
-import ika.context.util as ctx_util
-
-def exportMocapClipsFromScene(clipName,mocapNS='',char=None,targetDir=''):
-	'''
-	'''
-	# Check Destination
-	if not char and not targetDir:
-		raise Exception('Unbale to determine output path! Supply a target character or target directory.')
-	
-	# Check Mocap NS
-	if mocapNS: mocapNS+=':'
-	
-	# Determine Export Path
-	if char:
-		showPath = ika.fs.layout.getShowRoot()
-		clipPath = showPath+'/vfx/asset/char/'+char+'/moc/workfile/trax/'+clipName+'.mb'
-	elif targetDir:
-		if not os.path.isdir(targetDir): raise Exception('Invalid target directory "'+targetDir+'"!')
-		clipPath = targetDir+'/'+clipName+'.mb'
-	
-	# Create Character Set
-	mocap = glTools.nrig.rig.bipedMocap.BipedMocapRigRoll()
-	try: charSet = mocap.createCharSet('char','')
-	except: raise Exception('ERROR: Problem creating characterSet!')
-	
-	# Get Start/End Frames
-	keys = mc.keyframe(mocapNS+'Hips',q=True,tc=True)
-	if not keys: raise Exception('No animation on Hips!')
-	
-	clip = glTools.utils.clip.createClip(charSet,startTime=keys[0],endTime=keys[-1],name=clipName)
-	if not clip: raise Exception('Error creating clip!')
-	
-	# Export Clip
-	export = glTools.utils.clip.exportClip(clip,clipPath,force=True)
-	
-	# Return Result
-	return export
-
 def createMocapClipsFromFbxWip(sourceDir,targetDir,skipUpToDate=False,skipExistsing=False):
 	'''
 	Generate trax clips from a directory of mocap anim files.
@@ -84,7 +41,7 @@ def createMocapClipsFromFbxWip(sourceDir,targetDir,skipUpToDate=False,skipExists
 	if not sourceDir.endswith('/'): sourceDir+='/'
 	
 	# Get All FBX Files
-	clipFileList = ika.glob.glob(os.path.join(sourceDir+'*','*.fbx'))
+	clipFileList = None ####!!!
 	clipFileList.sort()
 	clipFileList.reverse()
 	
@@ -266,108 +223,6 @@ def createMocapClips(sourceDir,targetDir='',extList=['fbx'],skipUpToDate=False,s
 	# =================
 	
 	return clipPathList
-
-def createClipRig(char,srcSubtask='mocap',dstSubtask='clip',show='hbm'):
-	'''
-	'''
-	# ==============================
-	# - Get Source and Destination -
-	# ==============================
-	
-	# Get current context
-	currCtx = ika.maya.file.getContext()
-	srcOverrides = dict(currCtx)
-	
-	# Set Source Overrides
-	srcOverrides['assetTypeDir'] = 'char'
-	srcOverrides['asset'] = char
-	srcOverrides['task'] = 'rig'
-	srcOverrides['subtask'] = srcSubtask
-	
-	# Set Destination Overrides
-	dstOverrides = dict(srcOverrides)
-	dstOverrides['subtask'] = dstSubtask
-	
-	# Set Clip Overrides
-	clipOverrides = dict(srcOverrides)
-	clipOverrides['task'] = 'moc'
-	
-	# Get Source Paths
-	srcCtx = ctx_util.getLatestVersion(ctx_util.getContextByType('AssetWorkfile', overrides=srcOverrides))
-	srcPath = os.path.normpath(srcCtx.getFullPath())
-	if not os.path.isfile(srcPath):
-		raise Exception('Source rig file "'+srcPath+'" doesnt exist!')
-	
-	# Get Destination Path
-	dstCtx = ctx_util.getNewContextToSave(ctx_util.getContextByType('AssetWorkfile', overrides=dstOverrides))
-	dstPath = os.path.normpath(dstCtx.getFullPath())
-	
-	# Get Clip Path
-	clipCtx = ctx_util.getContextByType('AssetWorkfile', overrides=clipOverrides)
-	clipDir = os.path.dirname(os.path.normpath(clipCtx.getFullPath()))+'/trax/'
-	if not os.path.isdir(clipDir):
-		raise Exception('Source clip directory "'+clipDir+'" does not exist!')
-	
-	# ===============
-	# - Load Source -
-	# ===============
-	
-	extTypeMap = {}
-	extTypeMap['ma'] = 'mayaAscii'
-	extTypeMap['mb'] = 'mayaBinary'
-	
-	# Open Source Rig
-	mc.file(srcPath,o=True,force=True,prompt=False)
-	
-	# Create Character Set
-	mocap = glTools.nrig.rig.bipedMocap.BipedMocapRigRoll()
-	charSet = ''
-	try: charSet = mocap.createCharSet('char','')
-	except: raise Exception('Unable to create Character Set!')
-	
-	# ================
-	# - Import Clips -
-	# ================
-	
-	fileList = os.listdir(clipDir)
-	for fileName in fileList:
-		
-		# Check File
-		clipFile = clipDir+fileName
-		if not os.path.isfile(clipFile): continue
-		
-		# Check Ext
-		ext = os.path.splitext(clipFile)[1].lower()[1:]
-		if not extTypeMap.has_key(ext): continue
-		
-		# Get Clip Name
-		clipName = os.path.splitext(fileName)[0]
-		print('Loading clip "'+clipName+'"...')
-		
-		# Import Clip File
-		glTools.utils.clip.importClip(clipFile,toChar=charSet,toTrax=False)
-		#mc.file(clipFile,i=True,type=extTypeMap[ext],defaultNamespace=True)
-	
-	# Rename Clip Lib and Scheduler
-	if mc.objExists('charClips1'): charClips = mc.rename('charClips1','charClips')
-	if mc.objExists('charScheduler1'): charClips = mc.rename('charScheduler1','charScheduler')
-	
-	# =========================
-	# - Save Destination File -
-	# =========================
-	
-	print('Saving rig file - "'+dstPath+'"')
-	
-	ext = os.path.splitext(dstPath)[1].lower()[1:]
-	
-	mc.file(rename=dstPath)
-	mc.file(save=True,type=extTypeMap[ext])
-	
-	# =================
-	# - Return Result -
-	# =================
-	
-	return dstPath
 
 def createSourceClipFile(sourceDir,setLatest=False):
 	'''

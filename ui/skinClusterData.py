@@ -5,7 +5,7 @@ from glTools.data import skinClusterData
 
 import glTools.utils.skinCluster
 
-import glTools.ika_global
+import glTools.gl_global
 
 def skinClusterDataUI():
 	'''
@@ -152,7 +152,7 @@ def loadData():
 	'''
 	# Load SkinCluster Data
 	skinData = data.Data().load()
-	glTools.ika_global.glSkinClusterData = skinData
+	glTools.gl_global.glSkinClusterData = skinData
 	
 	# Rebuild UI
 	reloadUI()
@@ -182,7 +182,7 @@ def buildData():
 	
 	# Build Data
 	skinData = skinClusterData.SkinClusterData(skinCluster)
-	glTools.ika_global.glSkinClusterData = skinData
+	glTools.gl_global.glSkinClusterData = skinData
 	
 	# Rebuild UI
 	reloadUI()
@@ -191,7 +191,7 @@ def saveData():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Save SkinClusterData to File
@@ -201,7 +201,7 @@ def rebuildSkinCluster():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Rebuild SkinCluster
@@ -211,7 +211,7 @@ def renameSkinCluster():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Check Window
@@ -221,11 +221,11 @@ def renameSkinCluster():
 	# Get New SkinCluster Name
 	skinName = mc.textFieldGrp('skinCluster_nameTFG',q=True,text=True)
 	if not skinName:
-		skinName = glTools.ika_global.glSkinClusterData._data['name']
+		skinName = glTools.gl_global.glSkinClusterData._data['name']
 		mc.textFieldGrp('skinCluster_nameTFG',e=True,text=skinName)
 	
 	# Update skinClusterData
-	glTools.ika_global.glSkinClusterData._data['name'] = skinName
+	glTools.gl_global.glSkinClusterData._data['name'] = skinName
 	
 	# Refresh UI
 	reloadUI()
@@ -241,7 +241,7 @@ def remapGeometry():
 	if not mc.window(win,q=True,ex=True): return
 	
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Get User Selections
@@ -270,7 +270,7 @@ def updateBasicData():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData:
 		print('No SkinClusterData to load...')
 		return
@@ -291,7 +291,7 @@ def remapSelectedInfluence():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 
 def swapInfluenceWeights():
@@ -302,7 +302,7 @@ def swapInfluenceWeights():
 	if not mc.window(win,q=True,ex=True): return
 	
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Get Influence Selection
@@ -318,21 +318,21 @@ def moveInfluenceWeights():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 
 def combineSelectedInfluences():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 
 def displayWeightList():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Check Window
@@ -358,7 +358,7 @@ def selectInfluencesFromUI():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Check Window
@@ -382,7 +382,7 @@ def buildWorldSpaceMesh():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Get Affected Geometry
@@ -410,7 +410,7 @@ def storeWorldSpaceMesh():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Get Affected Geometry
@@ -441,7 +441,7 @@ def rebuildWorldSpaceData():
 	'''
 	'''
 	# Check SkinClusterData
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	if not skinData: return
 	
 	# Rebuild World Space Data
@@ -469,7 +469,7 @@ def reloadUI():
 	# - Get Global SkinClusterData Object -
 	# =====================================
 	
-	skinData = glTools.ika_global.glSkinClusterData
+	skinData = glTools.gl_global.glSkinClusterData
 	# Check SkinClusterData
 	if not skinData:
 		print('No SkinClusterData to load...')

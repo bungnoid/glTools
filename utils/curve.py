@@ -826,9 +826,9 @@ def uniformRebuild(curve,spans=6,replaceOriginal=False,prefix=None):
 	# ==========
 	
 	# Check Plugin
-	if not mc.pluginInfo('ikaCurveUtils',q=True,l=True):
-		try: mc.loadPlugin('ikaCurveUtils')
-		except:	raise MissingPluginError('Unable to load ikaCurveUtils!')
+	if not mc.pluginInfo('glCurveUtils',q=True,l=True):
+		try: mc.loadPlugin('glCurveUtils')
+		except:	raise MissingPluginError('Unable to load glCurveUtils!')
 	
 	# Check Curve
 	if not isCurve(curve): raise Exception('Object "'+curve+'" is not a valid nurbs curve!')

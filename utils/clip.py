@@ -5,8 +5,6 @@ import glTools.utils.characterSet
 import glTools.utils.namespace
 import glTools.utils.reference
 
-import ika.fs.layout
-
 import os.path
 
 def isClip(clip):
@@ -212,9 +210,7 @@ def importClips(charSet='',clips=[],toTrax=False):
 	char = charCtx['asset']
 	
 	# Get Starting Directory
-	showPath = ika.fs.layout.getShowRoot()
-	assetPath = showPath+'/vfx/asset/char/'+char+'/moc/workfile/trax/'
-	if not os.path.isdir(assetPath): assetPath = showPath
+	assetPath = ''
 	
 	# Get Clips
 	if not clips:
@@ -246,13 +242,6 @@ def importCharClips(charSet='',clips=[],toTrax=False):
 	charCtx = glTools.utils.reference.contextFromNsReferencePath(charSetNS)
 	char = charCtx['asset']
 	
-	# Get Starting Directory
-	showPath = ika.fs.layout.getShowRoot()
-	clipPath = showPath+'/vfx/asset/char/'+char+'/moc/workfile/trax/'
-	if not os.path.isdir(clipPath):
-		print('Unable to determine clip path for character "'+char+'"! Expected clip path "'+clipPath+'" does not exist...')
-		return
-	
 	# Import Clips
 	for clip in clips:
 		
@@ -283,15 +272,7 @@ def importClipsForAllChars(clips=[],toTrax=False):
 	if not clips:
 		
 		# Get Starting Directory
-		showPath = ika.fs.layout.getShowRoot()
-		assetPath = showPath+'/vfx/asset/char/'
-		
-		# Get Character Path
-		char = 'gen_male_a'
-		if char: assetPath += char+'/moc/workfile/trax/'
-		
-		# Check Character Path
-		if not os.path.isdir(assetPath): assetPath = showPath+'/vfx/asset/char/'
+		assetPath = '/'
 		
 		# Select Clips
 		clipList = mc.fileDialog2(dir=assetPath,fileFilter='Maya Files (*.ma *.mb)',dialogStyle=2,fileMode=4,okCaption='Import',caption='Load Clip')

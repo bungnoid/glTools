@@ -5,14 +5,14 @@ import glTools.utils.surface
 
 def loadPlugin():
 	'''
-	Load ikaCurveUtils plugin.
+	Load glCurveUtils plugin.
 	'''
 	# Check if plugin is loaded
-	if not mc.pluginInfo('ikaCurveUtils',q=True,l=True):
+	if not mc.pluginInfo('glCurveUtils',q=True,l=True):
 		
 		# Load Plugin
-		try: mc.loadPlugin('ikaCurveUtils')
-		except: raise Exception('Unable to load ikaCurveUtils plugin!')
+		try: mc.loadPlugin('glCurveUtils')
+		except: raise Exception('Unable to load glCurveUtils plugin!')
 	
 	# Return Result
 	return 1

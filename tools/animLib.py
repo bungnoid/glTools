@@ -3,8 +3,6 @@ import maya.cmds as mm
 
 import glTools.utils.reference
 
-import ika.maya.sgxml
-
 import os
 import datetime
 

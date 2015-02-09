@@ -169,7 +169,6 @@ def validNameCheck(objList=[]):
 	objList = [obj for obj in objList if not mc.nodeType(obj) == 'objectTypeFilter']
 	objList = [obj for obj in objList if not mc.nodeType(obj) == 'objectNameFilter']
 	objList = [obj for obj in objList if not mc.nodeType(obj) == 'objectScriptFilter']
-	objList = [obj for obj in objList if not mc.nodeType(obj).startswith('ika')]
 	
 	# Check valid names
 	result = []
