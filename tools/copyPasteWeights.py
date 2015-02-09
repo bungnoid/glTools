@@ -5,7 +5,7 @@ import glTools.utils.component
 import glTools.utils.selection
 import glTools.utils.skinCluster
 
-import glTools.utils.config
+import gl_globals
 
 class UserInterupted(Exception): pass
 
@@ -73,8 +73,8 @@ def copyWeights(tol=0.000001):
 	cmd += ' -zri true ###'
 	
 	# Set Global Weight Value
-	glTools.utils.config.glCopyPasteWeightCmd = cmd
-	print glTools.utils.config.glCopyPasteWeightCmd
+	gl_globals.glCopyPasteWeightCmd = cmd
+	print gl_globals.glCopyPasteWeightCmd
 
 def pasteWeights(showProgress=True):
 	'''
@@ -82,7 +82,7 @@ def pasteWeights(showProgress=True):
 	@type showProgress: bool
 	'''
 	# Global Weight Value
-	wt = glTools.utils.config.glCopyPasteWeightCmd
+	wt = gl_globals.glCopyPasteWeightCmd
 	
 	# Get Component Selection
 	sel = mc.filterExpand(ex=True,sm=[28,31,46])
@@ -185,8 +185,8 @@ def averageWeights(tol=0.000001):
 	cmd += (' -zri true ### ')
 	
 	# Return Result
-	glTools.utils.config.glCopyPasteWeightCmd = cmd
-	print glTools.utils.config.glCopyPasteWeightCmd
+	gl_globals.glCopyPasteWeightCmd = cmd
+	print gl_globals.glCopyPasteWeightCmd
 
 def autoAverageWeights():
 	'''
