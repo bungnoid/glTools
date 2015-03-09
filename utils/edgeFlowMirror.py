@@ -35,7 +35,6 @@ def addSymEdgeAttr(edge):
 	if len(mesh) > 1:
 		print('Multiple mesh objects found from edge!')
 	mesh = mesh[0]
-	mc.select(mesh)
 	
 	# Get Edge ID
 	edgeID = glTools.utils.component.index(edge)
@@ -99,6 +98,7 @@ def mirrorGeo(middleEdge,axis='x',posToNeg=True):
 	
 	# Get middle edge selection
 	mesh = mc.ls(middleEdge,o=True)[0]
+	mc.select(mesh)
 	
 	# Get base vertex array
 	pts = glTools.utils.base.getMPointArray(mesh)
