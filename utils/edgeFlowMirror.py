@@ -35,6 +35,7 @@ def addSymEdgeAttr(edge):
 	if len(mesh) > 1:
 		print('Multiple mesh objects found from edge!')
 	mesh = mesh[0]
+	mc.select(mesh)
 	
 	# Get Edge ID
 	edgeID = glTools.utils.component.index(edge)
