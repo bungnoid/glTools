@@ -98,6 +98,7 @@ def mirrorGeo(middleEdge,axis='x',posToNeg=True):
 	
 	# Get middle edge selection
 	mesh = mc.ls(middleEdge,o=True)[0]
+	mc.select(mesh)
 	
 	# Get base vertex array
 	pts = glTools.utils.base.getMPointArray(mesh)
