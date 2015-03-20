@@ -59,6 +59,7 @@ def autoMirror():
 	# Get middle edge selection
 	edgeSel = mc.ls(sl=1,fl=1)[0]
 	meshSel = mc.ls(edgeSel,o=True)[0]
+	mc.select(meshSel)
 	
 	# Duplicate mesh
 	meshDup = mc.duplicate(meshSel,rr=True,n=meshSel+'_symmetry')[0]
